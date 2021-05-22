@@ -24,7 +24,7 @@ from .const import (
     CONF_UPDATE_INTERVAL,
     MANUFACTURER,
 )
-from .droneMobile_new import Vehicle
+from drone_mobile import Vehicle
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 

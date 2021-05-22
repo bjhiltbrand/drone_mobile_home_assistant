@@ -15,7 +15,7 @@ from .const import (  # pylint:disable=unused-import
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
-from .droneMobile_new import Vehicle
+from drone_mobile import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
 
