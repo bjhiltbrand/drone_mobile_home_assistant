@@ -78,6 +78,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "refresh_status",
         async_refresh_status_service,
     )
+    
     hass.services.async_register(
         DOMAIN,
         "clear_tokens",
@@ -100,7 +101,6 @@ def refresh_status(service, hass, coordinator):
 def clear_tokens(service, hass, coordinator):
     _LOGGER.debug("Clearing Tokens")
     coordinator.vehicle.clearToken()
-
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
@@ -138,17 +138,17 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from DroneMobile."""
 
-        _LOGGER.debug(f"Retrieving vehicles for account {self.vehicle.username}")
+        _LOGGER.debug(f"Retrieving vehicles for account {self.coordinator.data['vehicle_name']}")
         
         try:
             async with async_timeout.timeout(30):
                 vehicles = await self._hass.async_add_executor_job(
-                    self.vehicle.status  # Fetch new status
+                    self.vehicle.status["results"]  # Fetch new status
                 )
 
                 # If data has now been fetched but was previously unavailable, log and reset
                 if not self._available:
-                    _LOGGER.info(f"Restored connection to DroneMobile for {self.vehicle.username}")
+                    _LOGGER.info(f"Restored connection to DroneMobile for {self.coordinator.data['vehicle_name']}")
                     self._available = True
                 for vehicle in vehicles:
                     if vehicle["id"] == self._vehicleID:
@@ -157,11 +157,21 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
             self._available = False  # Mark as unavailable
             _LOGGER.warning(str(ex))
             _LOGGER.warning(
-                "Error communicating with DroneMobile for %s", self.vehicle.username
+                "Error communicating with DroneMobile for %s", self.coordinator.data['vehicle_name']
             )
             raise UpdateFailed(
-                f"Error communicating with DroneMobile for {self.vehicle.username}"
+                f"Error communicating with DroneMobile for {self.coordinator.data['vehicle_name']}"
             ) from ex
+
+    def update_data_from_response(self, json_command_response):
+        if json_command_response["parsed"]["command_success"]:
+            """Overwrite values in coordinator data to update and match returned value."""
+            for json_dict in json_command_response["parsed"]:
+                for key,value in json_dict.iteritems():
+                    if self.coordinator.data[key] is not None:
+                        self.coordinator.data[key] = value
+        else:
+            _LOGGER.warning("Unable to send " + json_command_response["parsed"]["command_sent"] + " command to " + self.coordinator.data['vehicle_name'] + ".")
 
 
 class DroneMobileEntity(CoordinatorEntity):

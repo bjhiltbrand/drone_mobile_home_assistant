@@ -13,12 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
     entry = hass.data[DOMAIN][config_entry.entry_id]
-    # Added a check to see if the car supports GPS
-    #This originally said != None, but I needed to be able to bypass it for now.
-    #Logic needs to be added to address the fact that Latitude and Longitude
-    #Only show up if remote start has been activated (if you are not enrolled
-    #in the premium DroneMobile plan).
-    if entry.data["last_known_state"]["gps_direction"] == None:
+    if entry.data["last_known_state"]["latitude"] is not None:
         async_add_entities([CarTracker(entry, "gps")], True)
     else:
         _LOGGER.debug("Vehicle does not support GPS")
