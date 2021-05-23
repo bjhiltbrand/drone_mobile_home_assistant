@@ -28,11 +28,11 @@ class CarSensor(DroneMobileEntity,Entity,):
         if ftype == "state":
             if self.sensor == "odometer":
                 if self.options[CONF_UNIT] == "imperial":
-                    return round(
-                        float(self.coordinator.data["last_known_state"]["mileage"]) / 1.60934
-                    )
-                else:
                     return self.coordinator.data["last_known_state"]["mileage"]
+                else:
+                    return round(
+                        float(self.coordinator.data["last_known_state"]["mileage"]) * 1.60934
+                    )
             elif self.sensor == "battery":
                 return self.coordinator.data["last_known_state"]["controller"]["main_battery_voltage"]
             elif self.sensor == "temperature":
@@ -57,7 +57,7 @@ class CarSensor(DroneMobileEntity,Entity,):
             elif self.sensor == "lastRefresh":
                 return dt.as_local(
                     datetime.strptime(
-                        self.coordinator.data["update_date"], "%Y-%m-%dT%H:%M:%S%z"
+                        self.coordinator.data["last_known_state"]["timestamp"], "%Y-%m-%dT%H:%M:%S%z"
                     )
                 )
         elif ftype == "measurement":
