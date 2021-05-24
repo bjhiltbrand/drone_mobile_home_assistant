@@ -30,8 +30,8 @@ class Lock(DroneMobileEntity, LockEntity):
 
     async def async_lock(self, **kwargs):
         """Locks the vehicle."""
-        #if self.is_locked:
-        #    return
+        if self.is_locked:
+            return
         _LOGGER.debug("Locking %s", self.coordinator.data['vehicle_name'])
         response = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.vehicle.lock, self.coordinator.data["device_key"]
@@ -40,8 +40,8 @@ class Lock(DroneMobileEntity, LockEntity):
 
     async def async_unlock(self, **kwargs):
         """Unlocks the vehicle."""
-        #if not self.is_locked:
-        #    return
+        if not self.is_locked:
+            return
         _LOGGER.debug("Unlocking %s", self.coordinator.data['vehicle_name'])
         response = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.vehicle.unlock, self.coordinator.data["device_key"]

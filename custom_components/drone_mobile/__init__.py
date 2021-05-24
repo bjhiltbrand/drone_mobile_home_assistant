@@ -163,13 +163,15 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     def update_data_from_response(self, coordinator, json_command_response):
         if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
-            _LOGGER.warning("JSON Command Response: " + str(json_command_response))
-            _LOGGER.warning("Coordinator Data: " + str(coordinator.data))
             for key in json_command_response:
-                if key in coordinator.data:
-                    _LOGGER.warning("Key: " + str(key) + " value: " + str(coordinator.data[key]) + " BEFORE")
+                if key == "controller":
+                    for key in json_command_response["controller"]:
+                        if key in coordinator.data["last_known_state"]["controller"]:
+                            coordinator.data["last_known_state"]["controller"][key] = json_command_response["controller"][key]
+                elif key in coordinator.data["last_known_state"]:
+                    coordinator.data["last_known_state"][key] = json_command_response[key]
+                elif key in coordinator.data:
                     coordinator.data[key] = json_command_response[key]
-                    _LOGGER.warning("Key: " + str(key) + " value: " + str(coordinator.data[key]) + " AFTER")
         else:
             _LOGGER.warning("Unable to send " + json_command_response["command_sent"] + " command to " + coordinator.data['vehicle_name'] + ".")
 
