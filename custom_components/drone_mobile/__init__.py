@@ -138,41 +138,40 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from DroneMobile."""
 
-        _LOGGER.debug(f"Retrieving vehicles for account {self.coordinator.data['vehicle_name']}")
+        _LOGGER.debug(f"Retrieving vehicles for account {self.vehicle.username}")
         
         try:
             async with async_timeout.timeout(30):
                 vehicles = await self._hass.async_add_executor_job(
-                    self.vehicle.status["results"]  # Fetch new status
+                    self.vehicle.status  # Fetch new status
                 )
 
                 # If data has now been fetched but was previously unavailable, log and reset
                 if not self._available:
-                    _LOGGER.info(f"Restored connection to DroneMobile for {self.coordinator.data['vehicle_name']}")
+                    _LOGGER.info(f"Restored connection to DroneMobile for {self.vehicle.username}")
                     self._available = True
                 for vehicle in vehicles:
                     if vehicle["id"] == self._vehicleID:
                         return vehicle
         except Exception as ex:
             self._available = False  # Mark as unavailable
-            _LOGGER.warning(str(ex))
-            _LOGGER.warning(
-                "Error communicating with DroneMobile for %s", self.coordinator.data['vehicle_name']
-            )
+            _LOGGER.exception("Error communicating with DroneMobile for %s", self.vehicle.username)
             raise UpdateFailed(
-                f"Error communicating with DroneMobile for {self.coordinator.data['vehicle_name']}"
+                f"Error communicating with DroneMobile for {self.vehicle.username}"
             ) from ex
 
-    def update_data_from_response(self, json_command_response):
-        if json_command_response["parsed"]["command_success"]:
+    def update_data_from_response(self, coordinator, json_command_response):
+        if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
-            for json_dict in json_command_response["parsed"]:
-                for key,value in json_dict.iteritems():
-                    if self.coordinator.data[key] is not None:
-                        self.coordinator.data[key] = value
+            _LOGGER.warning("JSON Command Response: " + str(json_command_response))
+            _LOGGER.warning("Coordinator Data: " + str(coordinator.data))
+            for key in json_command_response:
+                if key in coordinator.data:
+                    _LOGGER.warning("Key: " + str(key) + " value: " + str(coordinator.data[key]) + " BEFORE")
+                    coordinator.data[key] = json_command_response[key]
+                    _LOGGER.warning("Key: " + str(key) + " value: " + str(coordinator.data[key]) + " AFTER")
         else:
-            _LOGGER.warning("Unable to send " + json_command_response["parsed"]["command_sent"] + " command to " + self.coordinator.data['vehicle_name'] + ".")
-
+            _LOGGER.warning("Unable to send " + json_command_response["command_sent"] + " command to " + coordinator.data['vehicle_name'] + ".")
 
 class DroneMobileEntity(CoordinatorEntity):
     """Defines a base DroneMobile entity."""

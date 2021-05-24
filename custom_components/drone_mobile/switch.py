@@ -30,13 +30,13 @@ class Switch(DroneMobileEntity, SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.vehicle.start, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(response)
+        self.coordinator.update_data_from_response(self.coordinator, response)
 
     async def async_turn_off(self, **kwargs):
         response = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.vehicle.stop, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(response)
+        self.coordinator.update_data_from_response(self.coordinator, response)
 
     @property
     def is_on(self):

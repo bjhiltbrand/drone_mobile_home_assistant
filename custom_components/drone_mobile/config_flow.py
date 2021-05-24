@@ -56,19 +56,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial configuration."""
         errors = {}
-        if user_input is None:
-            return self.async_show_form(
-                step_id="user",
-                data_schema=DATA_SCHEMA,
-                errors=errors,
-            )
-
-        # Show the next screen
-        return await self.async_step_authorize(user_input)
-
-    async def async_step_authorize(self, user_input=None):
-        """Authorize and continue"""
-        errors = {}
         if user_input is not None:
             try:
                 await validate_input(self.hass, user_input)
@@ -83,9 +70,21 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
-
-        # Show the next screen
-        return await self.async_step_select_vehicle(user_input)
+            if errors:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=DATA_SCHEMA,
+                    errors=errors,
+                )
+            else:
+                # Show the next screen
+                return await self.async_step_select_vehicle(user_input)
+        else:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=DATA_SCHEMA,
+                errors=errors,
+            )
 
     async def async_step_select_vehicle(self, user_input=None):
         """Ask user to select the vehicle to setup."""
@@ -165,7 +164,6 @@ class OptionsFlow(config_entries.OptionsFlow):
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
-
 
 class InvalidAuth(exceptions.HomeAssistantError):
     """Error to indicate there is invalid auth."""

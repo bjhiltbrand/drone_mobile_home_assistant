@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
     entry = hass.data[DOMAIN][config_entry.entry_id]
-    if entry.data["last_known_state"]["latitude"] is not None:
+    if "latitude" in entry.data["last_known_state"]:
         async_add_entities([CarTracker(entry, "gps")], True)
     else:
         _LOGGER.debug("Vehicle does not support GPS")
