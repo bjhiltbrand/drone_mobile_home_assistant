@@ -45,10 +45,6 @@ Status Sensors:
 Triggers:
 - Remote Start
 - Lock/Unlock (This also counts as arming the alarm)
-
-
-## Coming Soon
-
 - Trunk Trigger
 - Panic Trigger
 - Aux1 Trigger
