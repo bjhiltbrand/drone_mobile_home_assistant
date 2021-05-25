@@ -43,7 +43,7 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     async def async_turn_off(self, **kwargs):
         """switches off the vehicle device."""
@@ -64,7 +64,7 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     async def async_toggle(self, **kwargs):
         """Toggles the vehicle switch."""
@@ -85,7 +85,7 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     @property
     def is_on(self):
