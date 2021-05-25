@@ -151,7 +151,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                 f"Error communicating with DroneMobile for {self.vehicle.username}"
             ) from ex
 
-    def update_data_from_response(self, coordinator, json_command_response):
+    async def update_data_from_response(self, coordinator, json_command_response):
         if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
             for key in json_command_response:
@@ -165,6 +165,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                     coordinator.data[key] = json_command_response[key]
         else:
             _LOGGER.warning("Unable to send " + json_command_response["command_sent"] + " command to " + coordinator.data['vehicle_name'] + ".")
+        await coordinator.async_request_refresh()
 
 class DroneMobileEntity(CoordinatorEntity):
     """Defines a base DroneMobile entity."""

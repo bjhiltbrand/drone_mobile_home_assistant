@@ -37,7 +37,7 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     async def async_unlock(self, **kwargs):
         """Unlocks the vehicle device."""
@@ -52,7 +52,7 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     async def async_open(self, **kwargs):
         """Opens the trunk."""
@@ -67,7 +67,7 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.update_data_from_response(self.coordinator, response)
 
     @property
     def is_locked(self):
