@@ -49,10 +49,22 @@ TOKEN_FILE_LOCATION = "custom_components/drone_mobile/drone_mobile_token.txt"
 SENSORS = {
     "odometer": {"icon": "mdi:counter"},
     "battery": {"icon": "mdi:car-battery"},
-    "temperature": {"icon": "mdi-thermometer"},
+    "temperature": {"icon": "mdi:thermometer"},
     "gps": {"icon": "mdi:radar"},
     "alarm": {"icon": "mdi:bell"},
     "ignitionStatus": {"icon": "hass:power"},
     "doorStatus": {"icon": "mdi:car-door"},
     "lastRefresh": {"icon": "mdi:clock"},
+}
+
+LOCKS = {
+    "doorLock": {"icon": "mdi:car-door-lock"},
+    "trunk": {"icon": "mdi:car-wash"},
+}
+
+SWITCHES = {
+    "remoteStart": {"icon": "mdi:car-key"},
+    "panic": {"icon": "mdi:access-point"},
+    "aux1": {"icon": "mdi:numeric-1-box-multiple"},
+    "aux2": {"icon": "mdi:numeric-2-box-multiple"},
 }

@@ -6,7 +6,7 @@ from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 
-from .const import (  # pylint:disable=unused-import
+from .const import (
     CONF_UNIT,
     CONF_UNITS,
     CONF_UPDATE_INTERVAL,
@@ -24,7 +24,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
         vol.Optional(CONF_UNIT, default=DEFAULT_UNIT): vol.In(CONF_UNITS),
-        vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=3, max=24)),
+        vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
     }
 )
 
@@ -187,8 +187,6 @@ async def validate_input(hass: core.HomeAssistant, data):
     if not result:
         _LOGGER.error("Failed to authenticate with DroneMobile")
         raise CannotConnect
-
-    # Return info that you want to store in the config entry.
     return True
 
 async def get_vehicles(hass: core.HomeAssistant, data):
