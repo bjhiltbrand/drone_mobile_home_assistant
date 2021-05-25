@@ -26,21 +26,14 @@ from .const import (
 )
 from drone_mobile import Vehicle
 
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
-
 PLATFORMS = ["lock", "sensor", "switch", "device_tracker"]
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the DroneMobile component."""
-    hass.data.setdefault(DOMAIN, {})
-    return True
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up DroneMobile from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     vehicleID = entry.data[CONF_VEHICLE_ID]
@@ -50,28 +43,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass, username, password, updateInterval, vehicleID
     )
 
-    await coordinator.async_refresh()  # Get initial data
-
     if not entry.options:
         await async_update_options(hass, entry)
 
-    if not coordinator.last_update_success:
-        raise ConfigEntryNotReady
+    await coordinator.async_config_entry_first_refresh()  # Get initial data
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    for component in PLATFORMS:
+    for platform in PLATFORMS:
         hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, component)
+            hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    async def async_refresh_status_service(service_call):
+    async def async_refresh_status_service():
         await hass.async_add_executor_job(
-            refresh_status, hass, service_call, coordinator
+            refresh_status, hass, coordinator
         )
 
-    async def async_clear_tokens_service(service_call):
-        await hass.async_add_executor_job(clear_tokens, hass, service_call, coordinator)
+    async def async_clear_tokens_service():
+        await hass.async_add_executor_job(hass, coordinator)
 
     hass.services.async_register(
         DOMAIN,
@@ -93,12 +83,12 @@ async def async_update_options(hass, config_entry):
     hass.config_entries.async_update_entry(config_entry, options=options)
 
 
-def refresh_status(service, hass, coordinator):
+def refresh_status(hass, coordinator):
     _LOGGER.debug("Running Service")
     coordinator.vehicle.requestUpdate()
 
 
-def clear_tokens(service, hass, coordinator):
+def clear_tokens(hass, coordinator):
     _LOGGER.debug("Clearing Tokens")
     coordinator.vehicle.clearToken()
 
@@ -107,8 +97,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     unload_ok = all(
         await asyncio.gather(
             *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in PLATFORMS
+                hass.config_entries.async_forward_entry_unload(entry, platform)
+                for platform in PLATFORMS
             ]
         )
     )
@@ -150,12 +140,13 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                 if not self._available:
                     _LOGGER.info(f"Restored connection to DroneMobile for {self.vehicle.username}")
                     self._available = True
+
                 for vehicle in vehicles:
                     if vehicle["id"] == self._vehicleID:
                         return vehicle
+
         except Exception as ex:
             self._available = False  # Mark as unavailable
-            _LOGGER.exception("Error communicating with DroneMobile for %s", self.vehicle.username)
             raise UpdateFailed(
                 f"Error communicating with DroneMobile for {self.vehicle.username}"
             ) from ex
