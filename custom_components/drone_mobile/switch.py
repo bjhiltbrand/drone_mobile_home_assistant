@@ -31,7 +31,7 @@ class Switch(DroneMobileEntity,SwitchEntity):
         _LOGGER.debug("switching on %s " + self.switch, self.coordinator.data['vehicle_name'])
         command_call = None
         if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.remote_start
+            command_call = self.coordinator.vehicle.start
         elif self.switch == "panic":
             command_call = self.coordinator.vehicle.panic
         elif self.switch == "aux1":
@@ -52,7 +52,7 @@ class Switch(DroneMobileEntity,SwitchEntity):
         _LOGGER.debug("Switching off %s " + self.switch, self.coordinator.data['vehicle_name'])
         command_call = None
         if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.remote_stop
+            command_call = self.coordinator.vehicle.stop
         elif self.switch == "panic":
             command_call = self.coordinator.vehicle.panic
         elif self.switch == "aux1":
