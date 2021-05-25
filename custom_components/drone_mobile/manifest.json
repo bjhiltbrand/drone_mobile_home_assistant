@@ -1,11 +1,11 @@
 {
     "domain": "drone_mobile",
     "name": "DroneMobile",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "config_flow": true,
     "documentation": "https://github.com/bjhiltbrand/drone_mobile_home_assistant",
     "issue_tracker": "https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues",
-    "requirements": ["drone_mobile==0.0.8"],
+    "requirements": ["drone_mobile==0.0.9"],
     "ssdp": [],
     "zeroconf": [],
     "homekit": {},
