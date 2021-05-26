@@ -17,7 +17,7 @@ AWSCLIENTID = "3l3gtebtua7qft45b4splbeuiu"
 URLS = {
     "auth": "https://cognito-idp.us-east-1.amazonaws.com/",
     "user_info": "https://api.dronemobile.com/api/v1/user",
-    "vehicle_info": "https://api.dronemobile.com/api/v1/vehicle?limit=",
+    "vehicle_info": "https://api.dronemobile.com/api/v1/vehicle?limit=100",
     "command": "https://accounts.dronemobile.com/api/iot/send-command",
 }
 
@@ -29,8 +29,8 @@ AVAILABLE_COMMANDS = {
     "disarm",
     "panic_on",
     "panic_off",
-    "remote_aux1",
-    "remote_aux2",
+    "aux1",
+    "aux2",
     "location",
 }
 
@@ -55,6 +55,8 @@ SENSORS = {
     "alarm": {"icon": "mdi:bell"},
     "ignitionStatus": {"icon": "hass:power"},
     "doorStatus": {"icon": "mdi:car-door"},
+    "trunkStatus": {"icon": "mdi:car-wash"},
+    "hoodStatus": {"icon": "mdi:car-convertible"},
     "lastRefresh": {"icon": "mdi:clock"},
 }
 

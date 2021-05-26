@@ -22,6 +22,7 @@ from .const import (
     VEHICLE,
     CONF_VEHICLE_ID,
     CONF_UPDATE_INTERVAL,
+    DEFAULT_UPDATE_INTERVAL,
     MANUFACTURER,
 )
 from drone_mobile import Vehicle
@@ -79,7 +80,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_update_options(hass, config_entry):
-    options = {CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT)}
+    options = {
+        CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT),
+        CONF_UPDATE_INTERVAL: config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+    }
     hass.config_entries.async_update_entry(config_entry, options=options)
 
 
@@ -122,6 +126,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
+            update_method=self._async_update_data,
             update_interval=updateInterval,
         )
 
@@ -151,7 +156,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                 f"Error communicating with DroneMobile for {self.vehicle.username}"
             ) from ex
 
-    async def update_data_from_response(self, coordinator, json_command_response):
+    def update_data_from_response(self, coordinator, json_command_response):
         if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
             for key in json_command_response:
@@ -165,7 +170,6 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                     coordinator.data[key] = json_command_response[key]
         else:
             _LOGGER.warning("Unable to send " + json_command_response["command_sent"] + " command to " + coordinator.data['vehicle_name'] + ".")
-        await coordinator.async_request_refresh()
 
 class DroneMobileEntity(CoordinatorEntity):
     """Defines a base DroneMobile entity."""

@@ -1,7 +1,7 @@
 {
     "domain": "drone_mobile",
     "name": "DroneMobile",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "config_flow": true,
     "documentation": "https://github.com/bjhiltbrand/drone_mobile_home_assistant",
     "issue_tracker": "https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues",
