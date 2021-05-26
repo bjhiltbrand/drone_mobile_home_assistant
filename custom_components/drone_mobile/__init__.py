@@ -56,9 +56,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    async def async_refresh_status_service():
+    async def async_refresh_device_status_service():
         await hass.async_add_executor_job(
-            refresh_status, hass, coordinator
+            refresh_device_status, hass, coordinator
         )
 
     async def async_clear_tokens_service():
@@ -66,8 +66,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(
         DOMAIN,
-        "refresh_status",
-        async_refresh_status_service,
+        "refresh_device_status",
+        async_refresh_device_status_service,
     )
     
     hass.services.async_register(
@@ -78,7 +78,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     return True
 
-
 async def async_update_options(hass, config_entry):
     options = {
         CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT),
@@ -86,11 +85,10 @@ async def async_update_options(hass, config_entry):
     }
     hass.config_entries.async_update_entry(config_entry, options=options)
 
-
-def refresh_status(hass, coordinator):
+def refresh_device_status(hass, coordinator):
     _LOGGER.debug("Running Service")
-    coordinator.vehicle.requestUpdate()
-
+    response = coordinator.vehicle.device_status(coordinator.data["device_key"])
+    coordinator.update_data_from_response(coordinator, response)
 
 def clear_tokens(hass, coordinator):
     _LOGGER.debug("Clearing Tokens")

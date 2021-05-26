@@ -22,11 +22,12 @@ URLS = {
 }
 
 AVAILABLE_COMMANDS = {
-    "trunk",
+    "device_status"
     "remote_start",
     "remote_stop",
     "arm",
     "disarm",
+    "trunk",
     "panic_on",
     "panic_off",
     "aux1",
