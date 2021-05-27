@@ -21,7 +21,7 @@ Your car must have a DroneMobile Remote Start system installed (from Firstech, C
 Click on options and choose imperial or metric to display in km/miles. Takes effect on next restart of home assistant. Default is Imperial.
 
 ### Device Status Refresh
-I have added a service to poll the DroneMobile device (the car) for updates, due to the battery drain and data limits on the amount of times you can call this, this service call will need to be called manually or in your own automations. The service to be called is "refresh_device_status" and can be accessed in home assistant using "drone_mobile_[Vehicle Name Without Spaces].refresh_device_status" with no parameters.
+I have added a service to poll the DroneMobile device (the car) for updates, due to the battery drain and data limits on the amount of times you can call this, this service call will need to be called manually or in your own automations. The service to be called is "refresh_device_status" and can be accessed in home assistant using "drone_mobile.refresh_device_status" with no parameters.
 
 ### Clear Temporary Token
 If you are experiencing any sign in issues, please trying clearing your tokens using the "clear_temp_token" service call. Access it in home assistant using "drone_mobile.clear_temp_token" with no parameters.
