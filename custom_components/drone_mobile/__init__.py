@@ -56,13 +56,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    async def async_refresh_device_status_service():
+    async def async_refresh_device_status_service(self):
         await hass.async_add_executor_job(
             refresh_device_status, hass, coordinator
         )
+        await coordinator.async_refresh()
 
-    async def async_clear_tokens_service():
-        await hass.async_add_executor_job(hass, coordinator)
+    async def async_clear_temp_token_service(self):
+        await hass.async_add_executor_job(
+            clear_temp_token, hass, coordinator
+        )
+
+    async def async_replace_token_service(self):
+        await hass.async_add_executor_job(
+            replace_token, hass, coordinator
+        )
 
     hass.services.async_register(
         DOMAIN,
@@ -72,8 +80,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     
     hass.services.async_register(
         DOMAIN,
-        "clear_tokens",
-        async_clear_tokens_service,
+        "clear_temp_token",
+        async_clear_temp_token_service,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        "replace_token",
+        async_replace_token_service,
     )
 
     return True
@@ -90,9 +104,13 @@ def refresh_device_status(hass, coordinator):
     response = coordinator.vehicle.device_status(coordinator.data["device_key"])
     coordinator.update_data_from_response(coordinator, response)
 
-def clear_tokens(hass, coordinator):
+def clear_temp_token(hass, coordinator):
     _LOGGER.debug("Clearing Tokens")
-    coordinator.vehicle.clearToken()
+    coordinator.vehicle.clearTempToken()
+
+def replace_token(hass, coordinator):
+    _LOGGER.debug("Replacing Tokens")
+    coordinator.vehicle.replaceToken()
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
@@ -116,6 +134,8 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass, username, password, updateInterval, vehicleID):
         """Initialize the coordinator and set up the Vehicle object."""
         self._hass = hass
+        self.username = username
+        self.password = password
         self.vehicle = Vehicle(username, password)
         self._vehicleID = vehicleID
         self._available = True

@@ -12,21 +12,12 @@ CONF_UPDATE_INTERVAL = "update_interval"
 DEFAULT_UNIT = "imperial"
 DEFAULT_UPDATE_INTERVAL = 5
 
-AWSCLIENTID = "3l3gtebtua7qft45b4splbeuiu"
-
-URLS = {
-    "auth": "https://cognito-idp.us-east-1.amazonaws.com/",
-    "user_info": "https://api.dronemobile.com/api/v1/user",
-    "vehicle_info": "https://api.dronemobile.com/api/v1/vehicle?limit=100",
-    "command": "https://accounts.dronemobile.com/api/iot/send-command",
-}
-
 AVAILABLE_COMMANDS = {
-    "device_status"
-    "remote_start",
-    "remote_stop",
-    "arm",
-    "disarm",
+    "device_status",
+    "start",
+    "stop",
+    "lock",
+    "unlock",
     "trunk",
     "panic_on",
     "panic_off",
@@ -34,19 +25,6 @@ AVAILABLE_COMMANDS = {
     "aux2",
     "location",
 }
-
-COMMAND_HEADERS = {
-    "x-drone-api": None,
-    "Content-Type": "application/json;charset=utf-8",
-}
-
-AUTH_HEADERS = {
-    "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
-    "X-Amz-User-Agent": "aws-amplify/0.1.x js",
-    "Content-Type": "application/x-amz-json-1.1",
-}
-
-TOKEN_FILE_LOCATION = "custom_components/drone_mobile/drone_mobile_token.txt"
 
 SENSORS = {
     "odometer": {"icon": "mdi:counter"},

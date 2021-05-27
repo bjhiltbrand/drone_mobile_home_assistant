@@ -23,9 +23,11 @@ Click on options and choose imperial or metric to display in km/miles. Takes eff
 ### Device Status Refresh
 I have added a service to poll the DroneMobile device (the car) for updates, due to the battery drain and data limits on the amount of times you can call this, this service call will need to be called manually or in your own automations. The service to be called is "refresh_device_status" and can be accessed in home assistant using "drone_mobile.refresh_device_status" with no parameters.
 
-### Clear Tokens
-If you are experiencing any sign in issues, please trying clearing your tokens using the "clear_tokens" service call.
+### Clear Temporary Token
+If you are experiencing any sign in issues, please trying clearing your tokens using the "clear_temp_token" service call. Access it in home assistant using "drone_mobile.clear_temp_token" with no parameters.
 
+### Replace Token
+If you need to replace the stored token, use the the "replace_token" service call. Access it in home assistant using "drone_mobile.replace_token" with no parameters. WARNING: This method will delete your token file located in your home assistant config directory before re-authorizing and replacing that file. If something goes wrong in this call, that file will be deleted and if it isn't backed up first, you will have to delete the integration in home assistant and re-add it in order to re-authenticate. Please only use this service call if you know what you're doing and have backed up your token file first!
 
 ## Currently Working
 
