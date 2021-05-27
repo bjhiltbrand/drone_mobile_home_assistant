@@ -74,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(
         DOMAIN,
-        "refresh_device_status",
+        f"refresh_device_status_{coordinator.data['vehicle_name'].replace(' ', '_')}",
         async_refresh_device_status_service,
     )
     
