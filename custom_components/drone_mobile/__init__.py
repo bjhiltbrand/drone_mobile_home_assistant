@@ -22,6 +22,7 @@ from .const import (
     VEHICLE,
     CONF_VEHICLE_ID,
     CONF_UPDATE_INTERVAL,
+    DEFAULT_UPDATE_INTERVAL,
     MANUFACTURER,
 )
 from drone_mobile import Vehicle
@@ -55,42 +56,61 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    async def async_refresh_status_service():
+    async def async_refresh_device_status_service(self):
         await hass.async_add_executor_job(
-            refresh_status, hass, coordinator
+            refresh_device_status, hass, coordinator
+        )
+        await coordinator.async_refresh()
+
+    async def async_clear_temp_token_service(self):
+        await hass.async_add_executor_job(
+            clear_temp_token, hass, coordinator
         )
 
-    async def async_clear_tokens_service():
-        await hass.async_add_executor_job(hass, coordinator)
+    async def async_replace_token_service(self):
+        await hass.async_add_executor_job(
+            replace_token, hass, coordinator
+        )
 
     hass.services.async_register(
         DOMAIN,
-        "refresh_status",
-        async_refresh_status_service,
+        "refresh_device_status",
+        async_refresh_device_status_service,
     )
     
     hass.services.async_register(
         DOMAIN,
-        "clear_tokens",
-        async_clear_tokens_service,
+        "clear_temp_token",
+        async_clear_temp_token_service,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        "replace_token",
+        async_replace_token_service,
     )
 
     return True
 
-
 async def async_update_options(hass, config_entry):
-    options = {CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT)}
+    options = {
+        CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT),
+        CONF_UPDATE_INTERVAL: config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+    }
     hass.config_entries.async_update_entry(config_entry, options=options)
 
-
-def refresh_status(hass, coordinator):
+def refresh_device_status(hass, coordinator):
     _LOGGER.debug("Running Service")
-    coordinator.vehicle.requestUpdate()
+    response = coordinator.vehicle.device_status(coordinator.data["device_key"])
+    coordinator.update_data_from_response(coordinator, response)
 
-
-def clear_tokens(hass, coordinator):
+def clear_temp_token(hass, coordinator):
     _LOGGER.debug("Clearing Tokens")
-    coordinator.vehicle.clearToken()
+    coordinator.vehicle.clearTempToken()
+
+def replace_token(hass, coordinator):
+    _LOGGER.debug("Replacing Tokens")
+    coordinator.vehicle.replaceToken()
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
@@ -114,6 +134,8 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass, username, password, updateInterval, vehicleID):
         """Initialize the coordinator and set up the Vehicle object."""
         self._hass = hass
+        self.username = username
+        self.password = password
         self.vehicle = Vehicle(username, password)
         self._vehicleID = vehicleID
         self._available = True
@@ -122,6 +144,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
+            update_method=self._async_update_data,
             update_interval=updateInterval,
         )
 
@@ -151,7 +174,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                 f"Error communicating with DroneMobile for {self.vehicle.username}"
             ) from ex
 
-    async def update_data_from_response(self, coordinator, json_command_response):
+    def update_data_from_response(self, coordinator, json_command_response):
         if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
             for key in json_command_response:
@@ -165,7 +188,6 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                     coordinator.data[key] = json_command_response[key]
         else:
             _LOGGER.warning("Unable to send " + json_command_response["command_sent"] + " command to " + coordinator.data['vehicle_name'] + ".")
-        await coordinator.async_request_refresh()
 
 class DroneMobileEntity(CoordinatorEntity):
     """Defines a base DroneMobile entity."""

@@ -22,94 +22,96 @@ class Switch(DroneMobileEntity,SwitchEntity):
             name=coordinator.data["vehicle_name"] + "_" + switch,
             coordinator=coordinator,
         )
-        self.switch = switch
+        self._switch = switch
+        self._state = self.is_on
     
     async def async_turn_on(self, **kwargs):
         """switches on the vehicle device."""
         if self.is_on:
             return
-        _LOGGER.debug("switching on %s " + self.switch, self.coordinator.data['vehicle_name'])
+        _LOGGER.debug("switching on %s " + self._switch, self.coordinator.data['vehicle_name'])
         command_call = None
-        if self.switch == "remoteStart":
+        if self._switch == "remoteStart":
             command_call = self.coordinator.vehicle.start
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.remote_aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.remote_aux2
+        elif self._switch == "panic":
+            command_call = self.coordinator.vehicle.panic_on
+        elif self._switch == "aux1":
+            command_call = self.coordinator.vehicle.aux1
+        elif self._switch == "aux2":
+            command_call = self.coordinator.vehicle.aux2
         else:
             return
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        await self.coordinator.update_data_from_response(self.coordinator, response)
+        self.coordinator.update_data_from_response(self.coordinator, response)
+        self._state = self.is_on
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs):
         """switches off the vehicle device."""
         if not self.is_on:
             return
-        _LOGGER.debug("Switching off %s " + self.switch, self.coordinator.data['vehicle_name'])
+        _LOGGER.debug("Switching off %s " + self._switch, self.coordinator.data['vehicle_name'])
         command_call = None
-        if self.switch == "remoteStart":
+        if self._switch == "remoteStart":
             command_call = self.coordinator.vehicle.stop
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.remote_aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.remote_aux2
+        elif self._switch == "panic":
+            command_call = self.coordinator.vehicle.panic_off
         else:
             return
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        await self.coordinator.update_data_from_response(self.coordinator, response)
+        self.coordinator.update_data_from_response(self.coordinator, response)
+        self._state = self.is_on
+        self.async_write_ha_state()
 
     async def async_toggle(self, **kwargs):
         """Toggles the vehicle switch."""
-        _LOGGER.debug("Toggling %s " + self.switch, self.coordinator.data['vehicle_name'])
+        _LOGGER.debug("Toggling %s " + self._switch, self.coordinator.data['vehicle_name'])
         command_call = None
-        if self.switch == "remoteStart":
+        if self._switch == "remoteStart":
             if self.is_on:
                 command_call = self.coordinator.vehicle.remoteStop
             else:
                 command_call = self.coordinator.vehicle.remoteStart
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.remote_aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.remote_aux2
+        elif self._switch == "panic":
+            if self.is_on:
+                command_call = self.coordinator.vehicle.panic_off
+            else:
+                command_call = self.coordinator.vehicle.panic_on
+        elif self._switch == "aux1":
+            command_call = self.coordinator.vehicle.aux1
+        elif self._switch == "aux2":
+            command_call = self.coordinator.vehicle.aux2
             return
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        await self.coordinator.update_data_from_response(self.coordinator, response)
+        self.coordinator.update_data_from_response(self.coordinator, response)
+        self._state = self.is_on
+        self.async_write_ha_state()
 
     @property
     def is_on(self):
         """Determine if the switch is switched."""
-        if self.switch == "remoteStart":
+        if self._switch == "remoteStart":
             if (self.coordinator.data is None or self.coordinator.data["remote_start_status"] is None):
                 return None
-            return self.coordinator.data["remote_start_status"] == "true"
-        elif self.switch == "panic":
+            return self.coordinator.data["remote_start_status"] == True
+        elif self._switch == "panic":
             if (self.coordinator.data is None or self.coordinator.data["panic_status"] is None):
                 return None
-            return self.coordinator.data["panic_status"] == "true"
-        #These will need their own check for status, as they don't have values in the payload (most likely will depend on individual button mappings for various cars.)
-        elif self.switch == "aux1":
-            if (self.coordinator.data is None or self.coordinator.data["last_known_state"]["controller"]["trunk_open"] is None):
-                return None
-            return self.coordinator.data["last_known_state"]["controller"]["trunk_open"] == "false"
-        elif self.switch == "aux2":
-            if (self.coordinator.data is None or self.coordinator.data["last_known_state"]["controller"]["trunk_open"] is None):
-                return None
-            return self.coordinator.data["last_known_state"]["controller"]["trunk_open"] == "false"
+            return self.coordinator.data["panic_status"] == True
+        # Aux1 and Aux2 are momentary switches that can only be turned on. So, we will set their value to off.
+        elif self._switch == "aux1":
+            return False
+        elif self._switch == "aux2":
+            return False
         else:
-            _LOGGER.error("Entry not found in SWITCHES: " + self.switch)
+            _LOGGER.error("Entry not found in SWITCHES: " + self._switch)
 
     @property
     def icon(self):
-        return SWITCHES[self.switch]["icon"]
+        return SWITCHES[self._switch]["icon"]

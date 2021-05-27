@@ -18,7 +18,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         
 class CarSensor(DroneMobileEntity,Entity,):
     def __init__(self, coordinator, sensor, options):
-        self.sensor = sensor
+        self._sensor = sensor
         self.options = options
         self._attr = {}
         self.coordinator = coordinator
@@ -26,90 +26,110 @@ class CarSensor(DroneMobileEntity,Entity,):
 
     def get_value(self, ftype):
         if ftype == "state":
-            if self.sensor == "odometer":
+            if self._sensor == "odometer":
                 if self.options[CONF_UNIT] == "imperial":
                     return self.coordinator.data["last_known_state"]["mileage"]
                 else:
                     return round(
                         float(self.coordinator.data["last_known_state"]["mileage"]) * 1.60934
                     )
-            elif self.sensor == "battery":
+            elif self._sensor == "battery":
                 return self.coordinator.data["last_known_state"]["controller"]["main_battery_voltage"]
-            elif self.sensor == "temperature":
+            elif self._sensor == "temperature":
                 if self.options[CONF_UNIT] == "imperial":
                     return round(
                         float((self.coordinator.data["last_known_state"]["controller"]["current_temperature"]) * (9/5)) + 32
                     )
                 else:
                     return self.coordinator.data["last_known_state"]["controller"]["current_temperature"]
-            elif self.sensor == "gps":
+            elif self._sensor == "gps":
                 if self.coordinator.data["last_known_state"]["gps_direction"] == None:
                     return "Unsupported"
                 return self.coordinator.data["last_known_state"]["gps_direction"]
-            elif self.sensor == "alarm":
-                return self.coordinator.data["last_known_state"]["controller"]["armed"]
-            elif self.sensor == "ignitionStatus":
-                return self.coordinator.data["last_known_state"]["controller"]["ignition_on"]
-            elif self.sensor == "doorStatus":
-                if self.coordinator.data["last_known_state"]["controller"]["door_open"] == "true":
+            elif self._sensor == "alarm":
+                if self.coordinator.data["last_known_state"]["controller"]["armed"] == True:
+                    return "Armed"
+                return "Disarmed"
+            elif self._sensor == "ignitionStatus":
+                if self.coordinator.data["last_known_state"]["controller"]["engine_on"] == True:
+                    return "Running"
+                return "Off"
+            elif self._sensor == "doorStatus":
+                if self.coordinator.data["last_known_state"]["controller"]["door_open"] == True:
                     return "Open"
                 return "Closed"
-            elif self.sensor == "lastRefresh":
+            elif self._sensor == "trunkStatus":
+                if self.coordinator.data["last_known_state"]["controller"]["trunk_open"] == True:
+                    return "Open"
+                return "Closed"
+            elif self._sensor == "hoodStatus":
+                if self.coordinator.data["last_known_state"]["controller"]["hood_open"] == True:
+                    return "Open"
+                return "Closed"
+            elif self._sensor == "lastRefresh":
                 return dt.as_local(
                     datetime.strptime(
                         self.coordinator.data["last_known_state"]["timestamp"], "%Y-%m-%dT%H:%M:%S%z"
                     )
                 )
         elif ftype == "measurement":
-            if self.sensor == "odometer":
+            if self._sensor == "odometer":
                 if self.options[CONF_UNIT] == "imperial":
                     return "mi"
                 else:
                     return "km"
-            elif self.sensor == "battery":
+            elif self._sensor == "battery":
                 return "V"
-            elif self.sensor == "temperature":
+            elif self._sensor == "temperature":
                 if self.options[CONF_UNIT] == "imperial":
                     return "°F"
                 else:
                     return "°C"
-            elif self.sensor == "gps":
+            elif self._sensor == "gps":
                 return None
-            elif self.sensor == "alarm":
+            elif self._sensor == "alarm":
                 return None
-            elif self.sensor == "ignitionStatus":
+            elif self._sensor == "ignitionStatus":
                 return None
-            elif self.sensor == "doorStatus":
+            elif self._sensor == "doorStatus":
                 return None
-            elif self.sensor == "lastRefresh":
+            elif self._sensor == "trunkStatus":
+                return None
+            elif self._sensor == "hoodStatus":
+                return None
+            elif self._sensor == "lastRefresh":
                 return None
         elif ftype == "attribute":
-            if self.sensor == "odometer":
+            if self._sensor == "odometer":
                 return self.coordinator.data.items()
-            elif self.sensor == "battery":
+            elif self._sensor == "battery":
                 return {
                     "Battery Voltage": self.coordinator.data["last_known_state"]["controller"]["main_battery_voltage"]
                 }
-            elif self.sensor == "temperature":
+            elif self._sensor == "temperature":
                 return self.coordinator.data.items()
-            elif self.sensor == "gps":
+            elif self._sensor == "gps":
                 if self.coordinator.data["last_known_state"]["gps_direction"] == None:
                     return None
                 return self.coordinator.data.items()
-            elif self.sensor == "alarm":
+            elif self._sensor == "alarm":
                 return self.coordinator.data.items()
-            elif self.sensor == "ignitionStatus":
+            elif self._sensor == "ignitionStatus":
                 return self.coordinator.data.items()
-            elif self.sensor == "doorStatus":
+            elif self._sensor == "doorStatus":
                 return self.coordinator.data.items()
-            elif self.sensor == "lastRefresh":
+            elif self._sensor == "trunkStatus":
+                return self.coordinator.data.items()
+            elif self._sensor == "hoodStatus":
+                return self.coordinator.data.items()
+            elif self._sensor == "lastRefresh":
                 return None
             else:
                 return None
 
     @property
     def name(self):
-        return self.coordinator.data["vehicle_name"] + "_" + self.sensor
+        return self.coordinator.data["vehicle_name"] + "_" + self._sensor
 
     @property
     def state(self):
@@ -129,4 +149,4 @@ class CarSensor(DroneMobileEntity,Entity,):
 
     @property
     def icon(self):
-        return SENSORS[self.sensor]["icon"]
+        return SENSORS[self._sensor]["icon"]
