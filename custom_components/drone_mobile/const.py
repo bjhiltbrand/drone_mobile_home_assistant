@@ -33,6 +33,7 @@ SENSORS = {
     "gps": {"icon": "mdi:radar"},
     "alarm": {"icon": "mdi:bell"},
     "ignitionStatus": {"icon": "hass:power"},
+    "engineStatus": {"icon": "mdi:engine"},
     "doorStatus": {"icon": "mdi:car-door"},
     "trunkStatus": {"icon": "mdi:car-wash"},
     "hoodStatus": {"icon": "mdi:car-convertible"},
