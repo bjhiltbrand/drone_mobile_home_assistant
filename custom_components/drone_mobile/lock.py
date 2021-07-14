@@ -37,7 +37,9 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
         self._state = self.is_locked
         self.async_write_ha_state()
 
@@ -56,7 +58,9 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
         self._state = self.is_locked
         self.async_write_ha_state()
 
@@ -73,7 +77,9 @@ class Lock(DroneMobileEntity,LockEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
         self._state = self.is_locked
         self.async_write_ha_state()
 

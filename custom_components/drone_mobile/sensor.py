@@ -51,9 +51,21 @@ class CarSensor(DroneMobileEntity,Entity,):
                     return "Armed"
                 return "Disarmed"
             elif self._sensor == "ignitionStatus":
+                if self.coordinator.data["last_known_state"]["controller"]["ignition_on"] == True:
+                    return "On"
+                else:
+                    # Vehicle may have been remote started or stopped outside of Home Assistant, so we reset this flag to match the current vehicle status.
+                    if self.coordinator.data["remote_start_status"] == True:
+                        self.coordinator.data["remote_start_status"] = False
+                    return "Off"
+            elif self._sensor == "engineStatus":
                 if self.coordinator.data["last_known_state"]["controller"]["engine_on"] == True:
                     return "Running"
-                return "Off"
+                else:
+                    # Vehicle may have been remote started or stopped outside of Home Assistant, so we reset this flag to match the current vehicle status.
+                    if self.coordinator.data["remote_start_status"] == True:
+                        self.coordinator.data["remote_start_status"] = False
+                    return "Off"
             elif self._sensor == "doorStatus":
                 if self.coordinator.data["last_known_state"]["controller"]["door_open"] == True:
                     return "Open"
@@ -91,6 +103,8 @@ class CarSensor(DroneMobileEntity,Entity,):
                 return None
             elif self._sensor == "ignitionStatus":
                 return None
+            elif self._sensor == "engineStatus":
+                return None
             elif self._sensor == "doorStatus":
                 return None
             elif self._sensor == "trunkStatus":
@@ -115,6 +129,8 @@ class CarSensor(DroneMobileEntity,Entity,):
             elif self._sensor == "alarm":
                 return self.coordinator.data.items()
             elif self._sensor == "ignitionStatus":
+                return self.coordinator.data.items()
+            elif self._sensor == "engineStatus":
                 return self.coordinator.data.items()
             elif self._sensor == "doorStatus":
                 return self.coordinator.data.items()

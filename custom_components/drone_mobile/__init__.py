@@ -1,6 +1,7 @@
 """The DroneMobile integration."""
 import asyncio
 import logging
+import json
 from datetime import timedelta
 
 import async_timeout
@@ -62,6 +63,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
         await coordinator.async_refresh()
 
+    async def async_dump_device_data_service(self):
+        await hass.async_add_executor_job(
+            dump_device_data, hass, coordinator
+        )
+
+    async def async_locate_device_service(self):
+        await hass.async_add_executor_job(
+            locate_device, hass, coordinator
+        )
+
     async def async_clear_temp_token_service(self):
         await hass.async_add_executor_job(
             clear_temp_token, hass, coordinator
@@ -76,6 +87,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         DOMAIN,
         f"refresh_device_status_{coordinator.data['vehicle_name'].replace(' ', '_')}",
         async_refresh_device_status_service,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        f"dump_device_data_{coordinator.data['vehicle_name'].replace(' ', '_')}",
+        async_dump_device_data_service,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        f"locate_device_{coordinator.data['vehicle_name'].replace(' ', '_')}",
+        async_locate_device_service,
     )
     
     hass.services.async_register(
@@ -100,8 +123,18 @@ async def async_update_options(hass, config_entry):
     hass.config_entries.async_update_entry(config_entry, options=options)
 
 def refresh_device_status(hass, coordinator):
-    _LOGGER.debug("Running Service")
+    _LOGGER.debug("Refreshing Device Status")
     response = coordinator.vehicle.device_status(coordinator.data["device_key"])
+    coordinator.update_data_from_response(coordinator, response)
+
+def dump_device_data(hass, coordinator):
+    _LOGGER.debug("Dumping Device Data")
+    with open("./drone_mobile_device_data_" + coordinator.data["vehicle_name"] + ".txt", "w") as outfile:
+        json.dump(coordinator.data, outfile)
+
+def locate_device(hass, coordinator):
+    _LOGGER.debug("Sending Device Locate Command")
+    response = coordinator.vehicle.location(coordinator.data["device_key"])
     coordinator.update_data_from_response(coordinator, response)
 
 def clear_temp_token(hass, coordinator):
@@ -155,8 +188,8 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
         
         try:
             async with async_timeout.timeout(30):
-                vehicles = await self._hass.async_add_executor_job(
-                    self.vehicle.status  # Fetch new status
+                vehicle = await self._hass.async_add_executor_job(
+                    self.vehicle.vehicle_status, self._vehicleID  # Fetch new vehicle status
                 )
 
                 # If data has now been fetched but was previously unavailable, log and reset
@@ -164,9 +197,7 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.info(f"Restored connection to DroneMobile for {self.vehicle.username}")
                     self._available = True
 
-                for vehicle in vehicles:
-                    if vehicle["id"] == self._vehicleID:
-                        return vehicle
+                return vehicle
 
         except Exception as ex:
             self._available = False  # Mark as unavailable
@@ -178,6 +209,9 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
         if json_command_response["command_success"]:
             """Overwrite values in coordinator data to update and match returned value."""
             for key in json_command_response:
+                if key == "latitude" or key =="longitude" or key == "latlng":
+                    if key not in coordinator.data["last_known_state"]:
+                        coordinator.data["last_known_state"][key] = json_command_response[key]
                 if key == "controller":
                     for key in json_command_response["controller"]:
                         if key in coordinator.data["last_known_state"]["controller"]:

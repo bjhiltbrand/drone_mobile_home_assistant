@@ -44,8 +44,10 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
-        self._state = self.is_on
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
+        self._state = self.get_is_on_value(True)
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs):
@@ -63,8 +65,10 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
-        self._state = self.is_on
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
+        self._state = self.get_is_on_value(True)
         self.async_write_ha_state()
 
     async def async_toggle(self, **kwargs):
@@ -89,17 +93,22 @@ class Switch(DroneMobileEntity,SwitchEntity):
         response = await self.coordinator.hass.async_add_executor_job(
             command_call, self.coordinator.data["device_key"]
         )
-        self.coordinator.update_data_from_response(self.coordinator, response)
-        self._state = self.is_on
+        await self.coordinator.hass.async_add_executor_job(
+            self.coordinator.update_data_from_response, self.coordinator, response
+        )
+        self._state = self.get_is_on_value(True)
         self.async_write_ha_state()
 
-    @property
-    def is_on(self):
+    # Need to remove @property decorator in order to be able to change logic based on where the call to is_on is made from.
+    def get_is_on_value(self, calledFromAction=False):
         """Determine if the switch is switched."""
         if self._switch == "remoteStart":
-            if (self.coordinator.data is None or self.coordinator.data["remote_start_status"] is None):
+            if (self.coordinator.data is None or self.coordinator.data["last_known_state"]["controller"]["engine_on"] is None):
                 return None
-            return self.coordinator.data["remote_start_status"] == True
+            if calledFromAction:
+                return self.coordinator.data["remote_start_status"] == True
+            else:
+                return (self.coordinator.data["last_known_state"]["controller"]["engine_on"] == True or self.coordinator.data["last_known_state"]["controller"]["ignition_on"] == True)
         elif self._switch == "panic":
             if (self.coordinator.data is None or self.coordinator.data["panic_status"] is None):
                 return None
@@ -111,6 +120,8 @@ class Switch(DroneMobileEntity,SwitchEntity):
             return False
         else:
             _LOGGER.error("Entry not found in SWITCHES: " + self._switch)
+    
+    is_on = property(get_is_on_value)
 
     @property
     def icon(self):

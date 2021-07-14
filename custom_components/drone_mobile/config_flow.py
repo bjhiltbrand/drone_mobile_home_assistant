@@ -193,7 +193,7 @@ async def get_vehicles(hass: core.HomeAssistant, data):
     vehicleObject = Vehicle(data[CONF_USERNAME], data[CONF_PASSWORD])
     try:
         vehicles = await hass.async_add_executor_job(
-            vehicleObject.status
+            vehicleObject.getAllVehicles
         )
         return vehicles
     except Exception as ex:
