@@ -1,5 +1,5 @@
-import logging
 from datetime import timedelta
+import logging
 
 from homeassistant.components.device_tracker import SOURCE_TYPE_GPS
 from homeassistant.components.device_tracker.config_entry import TrackerEntity

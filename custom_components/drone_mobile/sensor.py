@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime, timedelta
+import logging
 
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle, dt

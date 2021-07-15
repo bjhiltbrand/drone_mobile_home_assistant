@@ -1,6 +1,6 @@
 import logging
 
-from homeassistant.components.lock import LockEntity, SUPPORT_OPEN
+from homeassistant.components.lock import SUPPORT_OPEN, LockEntity
 
 from . import DroneMobileEntity
 from .const import DOMAIN, LOCKS

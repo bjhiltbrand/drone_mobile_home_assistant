@@ -1,7 +1,9 @@
 """Config flow for DroneMobile integration."""
 import logging
 
+from drone_mobile import Vehicle
 import voluptuous as vol
+
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
@@ -15,7 +17,6 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
-from drone_mobile import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
 
