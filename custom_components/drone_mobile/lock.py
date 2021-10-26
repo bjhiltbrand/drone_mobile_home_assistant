@@ -29,7 +29,8 @@ class Lock(DroneMobileEntity, LockEntity):
     async def async_lock(self, **kwargs):
         """Locks the vehicle device."""
         if self.is_locked:
-            return
+            if self.coordinator._override_lock_state_check == False:
+                return
         _LOGGER.debug("Locking %s", self.coordinator.data["vehicle_name"])
         command_call = None
         if self._lock == "doorLock":
@@ -48,7 +49,8 @@ class Lock(DroneMobileEntity, LockEntity):
     async def async_unlock(self, **kwargs):
         """Unlocks the vehicle device."""
         if not self.is_locked:
-            return
+            if self.coordinator._override_lock_state_check == False:
+                return
         _LOGGER.debug("Unlocking %s", self.coordinator.data["vehicle_name"])
         command_call = None
         if self._lock == "doorLock":
@@ -69,7 +71,8 @@ class Lock(DroneMobileEntity, LockEntity):
     async def async_open(self, **kwargs):
         """Opens the trunk."""
         if not self.is_locked:
-            return
+            if self.coordinator._override_state_check == False:
+                return
         _LOGGER.debug("Opening %s trunk", self.coordinator.data["vehicle_name"])
         command_call = None
         if self._lock == "trunk":

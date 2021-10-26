@@ -22,8 +22,10 @@ from .const import (
     CONF_UNIT,
     CONF_UPDATE_INTERVAL,
     CONF_VEHICLE_ID,
+    CONF_OVERRIDE_LOCK_STATE_CHECK,
     DEFAULT_UNIT,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
     DOMAIN,
     MANUFACTURER,
     VEHICLE,
@@ -40,10 +42,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     vehicleID = entry.data[CONF_VEHICLE_ID]
-    updateInterval = timedelta(seconds=(entry.data[CONF_UPDATE_INTERVAL] * 60))
+    updateInterval = timedelta(seconds=(entry.options[CONF_UPDATE_INTERVAL] * 60))
+    overrideLockStateCheck = entry.options[CONF_OVERRIDE_LOCK_STATE_CHECK]
 
     coordinator = DroneMobileDataUpdateCoordinator(
-        hass, username, password, updateInterval, vehicleID
+        hass, username, password, updateInterval, overrideLockStateCheck, vehicleID
     )
 
     if not entry.options:
@@ -100,9 +103,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_update_options(hass, config_entry):
     options = {
-        CONF_UNIT: config_entry.data.get(CONF_UNIT, DEFAULT_UNIT),
+        CONF_UNIT: config_entry.options.get(CONF_UNIT, DEFAULT_UNIT),
         CONF_UPDATE_INTERVAL: config_entry.options.get(
             CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
+        ),
+        CONF_OVERRIDE_LOCK_STATE_CHECK: config_entry.options.get(
+            CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
         ),
     }
     hass.config_entries.async_update_entry(config_entry, options=options)
@@ -151,13 +157,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the vehicle."""
 
-    def __init__(self, hass, username, password, updateInterval, vehicleID):
+    def __init__(self, hass, username, password, updateInterval, overrideLockStateCheck, vehicleID):
         """Initialize the coordinator and set up the Vehicle object."""
         self._hass = hass
         self.username = username
         self.password = password
         self.vehicle = Vehicle(username, password)
         self._vehicleID = vehicleID
+        self._override_lock_state_check = overrideLockStateCheck
         self._available = True
 
         super().__init__(

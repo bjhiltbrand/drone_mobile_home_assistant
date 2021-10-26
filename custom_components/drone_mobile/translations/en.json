@@ -7,9 +7,9 @@
         "data": {
           "username": "DroneMobile Username (Email)",
           "password": "DroneMobile Password",
-          "save_token": "Save Authentication Tokens",
           "units": "Unit of Measurement",
-          "update_interval": "Update Interval (In Minutes)"
+          "update_interval": "Update Interval (In Minutes)",
+          "override_lock_state_check": "Send Lock Commands Regardless of State."
         }
       },
       "select_vehicle": {
@@ -36,9 +36,9 @@
         "title": "DroneMobile Options",
         "description": "Configure DroneMobile options",
         "data": {
-          "save_token": "Save Authentication Tokens",
           "units": "Unit of Measurement",
-          "update_interval": "Update Interval (In Minutes)"
+          "update_interval": "Update Interval (In Minutes)",
+          "override_lock_state_check": "Send Lock Commands Regardless of State."
         }
       }
     }

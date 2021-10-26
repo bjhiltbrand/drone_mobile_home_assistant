@@ -6,11 +6,13 @@ MANUFACTURER = "DroneMobile"
 
 CONF_VEHICLE_ID = "vehicle_id"
 CONF_UNIT = "units"
-CONF_UNITS = ["imperial", "metric"]
+CONF_UNITS = ["Imperial", "Metric"]
 CONF_UPDATE_INTERVAL = "update_interval"
+CONF_OVERRIDE_LOCK_STATE_CHECK = "override_lock_state_check"
 
-DEFAULT_UNIT = "imperial"
+DEFAULT_UNIT = "Imperial"
 DEFAULT_UPDATE_INTERVAL = 5
+DEFAULT_OVERRIDE_LOCK_STATE_CHECK = False
 
 AVAILABLE_COMMANDS = {
     "device_status",
