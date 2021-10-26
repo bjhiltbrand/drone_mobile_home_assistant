@@ -1,11 +1,11 @@
 {
   "domain": "drone_mobile",
   "name": "DroneMobile",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "config_flow": true,
   "documentation": "https://github.com/bjhiltbrand/drone_mobile_home_assistant",
   "issue_tracker": "https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues",
-  "requirements": ["drone_mobile==0.2.2"],
+  "requirements": ["drone_mobile==0.2.23"],
   "dependencies": [],
   "codeowners": ["@bjhiltbrand"],
   "iot_class": "cloud_polling"

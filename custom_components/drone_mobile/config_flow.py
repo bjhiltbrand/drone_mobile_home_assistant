@@ -12,9 +12,11 @@ from .const import (
     CONF_UNIT,
     CONF_UNITS,
     CONF_UPDATE_INTERVAL,
+    CONF_OVERRIDE_LOCK_STATE_CHECK,
     CONF_VEHICLE_ID,
     DEFAULT_UNIT,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
     DOMAIN,
 )
 
@@ -24,10 +26,11 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Optional(CONF_UNIT, default=DEFAULT_UNIT): vol.In(CONF_UNITS),
-        vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(
+        vol.Required(CONF_UNIT, default=DEFAULT_UNIT): vol.In(CONF_UNITS),
+        vol.Required(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=2, max=60)
         ),
+        vol.Required(CONF_OVERRIDE_LOCK_STATE_CHECK, default=DEFAULT_OVERRIDE_LOCK_STATE_CHECK): bool,
     }
 )
 
@@ -44,6 +47,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.password = None
         self.unit = None
         self.update_interval = None
+        self.override_lock_state_check = None
         self.vehicle_id = None
         self.vehicles_options = None
 
@@ -67,6 +71,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.password = user_input[CONF_PASSWORD]
                 self.unit = user_input[CONF_UNIT]
                 self.update_interval = user_input[CONF_UPDATE_INTERVAL]
+                self.override_lock_state_check = user_input[CONF_OVERRIDE_LOCK_STATE_CHECK]
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -127,15 +132,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data = {
             CONF_USERNAME: self.username,
             CONF_PASSWORD: self.password,
+            CONF_VEHICLE_ID: self.vehicle_id,
+        }
+        options = {
             CONF_UNIT: self.unit,
             CONF_UPDATE_INTERVAL: self.update_interval,
-            CONF_VEHICLE_ID: self.vehicle_id,
+            CONF_OVERRIDE_LOCK_STATE_CHECK: self.override_lock_state_check,
         }
 
         await self.async_set_unique_id("drone_mobile_vehicle_" + str(self.vehicle_id))
         self._abort_if_unique_id_configured()
         return self.async_create_entry(
-            title=self.vehicles_options[self.vehicle_id], data=data
+            title=self.vehicles_options[self.vehicle_id], data=data, options=options
         )
 
 
@@ -159,6 +167,12 @@ class OptionsFlow(config_entries.OptionsFlow):
                     CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
+            vol.Optional(
+                CONF_OVERRIDE_LOCK_STATE_CHECK, 
+                default=self.config_entry.options.get(
+                    CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
+                ),
+            ): bool,
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
@@ -203,6 +217,6 @@ async def get_vehicles(hass: core.HomeAssistant, data):
 
     if not vehicles:
         _LOGGER.error(
-            "Error communicating with DroneMobile for %s", vehicleObject.username
+            "Error communicating with DroneMobile"
         )
         raise CannotConnect
