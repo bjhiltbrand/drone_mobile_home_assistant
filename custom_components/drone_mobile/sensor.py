@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import logging
 
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle, dt
+from homeassistant.util import dt
 
 from . import DroneMobileEntity
 from .const import CONF_UNIT, DOMAIN, SENSORS
@@ -28,11 +28,13 @@ class CarSensor(
         self._attr = {}
         self.coordinator = coordinator
         self._device_id = "dronemobile_" + sensor
+        # Required for HA 2022.7
+        self.coordinator_context = object()
 
     def get_value(self, ftype):
         if ftype == "state":
             if self._sensor == "odometer":
-                if self.options[CONF_UNIT] == "imperial":
+                if self.options[CONF_UNIT] == "Imperial":
                     return self.coordinator.data["last_known_state"]["mileage"]
                 else:
                     return round(
@@ -44,7 +46,7 @@ class CarSensor(
                     "main_battery_voltage"
                 ]
             elif self._sensor == "temperature":
-                if self.options[CONF_UNIT] == "imperial":
+                if self.options[CONF_UNIT] == "Imperial":
                     return round(
                         float(
                             (
@@ -127,14 +129,14 @@ class CarSensor(
                 )
         elif ftype == "measurement":
             if self._sensor == "odometer":
-                if self.options[CONF_UNIT] == "imperial":
+                if self.options[CONF_UNIT] == "Imperial":
                     return "mi"
                 else:
                     return "km"
             elif self._sensor == "battery":
                 return "V"
             elif self._sensor == "temperature":
-                if self.options[CONF_UNIT] == "imperial":
+                if self.options[CONF_UNIT] == "Imperial":
                     return "°F"
                 else:
                     return "°C"
