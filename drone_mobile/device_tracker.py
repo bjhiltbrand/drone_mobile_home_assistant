@@ -26,8 +26,6 @@ class CarTracker(DroneMobileEntity, TrackerEntity):
         self.sensor = sensor
         self.coordinator = coordinator
         self._device_id = "dronemobile_tracker"
-        # Required for HA 2022.7
-        self.coordinator_context = object()
 
     @property
     def latitude(self):
