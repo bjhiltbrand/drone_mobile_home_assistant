@@ -54,3 +54,7 @@ class CarTracker(DroneMobileEntity, TrackerEntity):
     @property
     def icon(self):
         return "mdi:radar"
+
+    @property
+    def coordinator_context(self):
+        return None
