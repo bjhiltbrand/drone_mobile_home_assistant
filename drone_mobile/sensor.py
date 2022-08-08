@@ -13,6 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
     entry = hass.data[DOMAIN][config_entry.entry_id]
+    sensors = []
     for key, value in SENSORS.items():
         async_add_entities([CarSensor(entry, key, config_entry.options)], True)
 
@@ -33,16 +34,13 @@ class CarSensor(
     def get_value(self, ftype):
         if ftype == "state":
             if self._sensor == "odometer":
-                if self.options[CONF_UNIT] != None:
-                    if self.options[CONF_UNIT] == "Imperial":
-                        return self.coordinator.data["last_known_state"]["mileage"]
-                    else:
-                        return round(
-                            float(self.coordinator.data["last_known_state"]["mileage"])
-                            * 1.60934
-                        )
-                else:
+                if self.options[CONF_UNIT] == "Imperial":
                     return self.coordinator.data["last_known_state"]["mileage"]
+                else:
+                    return round(
+                        float(self.coordinator.data["last_known_state"]["mileage"])
+                        * 1.60934
+                    )
             elif self._sensor == "battery":
                 return self.coordinator.data["last_known_state"]["controller"][
                     "main_battery_voltage"

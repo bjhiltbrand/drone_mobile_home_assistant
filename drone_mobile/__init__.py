@@ -31,19 +31,14 @@ from .const import (
     VEHICLE,
 )
 
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
-
 PLATFORMS = ["lock", "sensor", "switch", "device_tracker"]
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the DroneMobile component."""
-    hass.data.setdefault(DOMAIN, {})
-    return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up DroneMobile from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     vehicleID = entry.data[CONF_VEHICLE_ID]
@@ -148,8 +143,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     unload_ok = all(
         await asyncio.gather(
             *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in PLATFORMS
+                hass.config_entries.async_forward_entry_unload(entry, platform)
+                for platform in PLATFORMS
             ]
         )
     )
@@ -201,8 +196,6 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as ex:
             self._available = False  # Mark as unavailable
-            _LOGGER.warning(str(ex))
-            _LOGGER.warning("Error communicating with DroneMobile for %s", self._vehicleID)
             raise UpdateFailed(f"Error communicating with DroneMobile") from ex
 
     def update_data_from_response(self, coordinator, json_command_response):
