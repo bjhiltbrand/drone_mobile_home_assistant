@@ -8,7 +8,7 @@ notice. The authors claim no responsibility for damages to your vehicle
 by use of the code within.
 
 ## Install
-Place the "drone_mobile" folder in the "custom_components" folder of your Home Assistant instance. Once the integration is installed go to your integrations and follow the configuration options to specify the below:
+Place the "drone_mobile" folder in the "custom_components" folder of your Home Assistant instance. This essentially installs the integration for Home Assistant to use. You may need to restart your Home Assistant instance to get Home Assistant to see that a new integration has been installed. Once the integration is installed go to your integrations (By clicking "Settings", then "Devices & Services", then clicking on the "Add Integration" button, and searching for the "DroneMobile" Integration) and follow the configuration options to specify the below:
 - Username (DroneMobile - This should be an email address)
 - Password (DroneMobile)
 - Units (Imperial or Metric. The default is Imperial [MPH, miles, farenheit])
