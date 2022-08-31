@@ -13,6 +13,7 @@ Place the "drone_mobile" folder in the "custom_components" folder of your Home A
 - Password (DroneMobile)
 - Units (Imperial or Metric. The default is Imperial [MPH, miles, farenheit])
 - Update Interval (In Minutes)
+- Whether or not you want to send lock commands regardless of what state they are already reporting to be in (default is unchecked, or false)
 
 ## Usage
 Your car must have a DroneMobile Remote Start system installed (from Firstech, Compustar, etc.) and you must be subscribed to a DroneMobile Plan.
