@@ -48,22 +48,16 @@ class CarSensor(
                     "main_battery_voltage"
                 ]
             elif self._sensor == "temperature":
-                if self.options[CONF_UNIT] == "Imperial":
-                    return round(
-                        float(
-                            (
-                                self.coordinator.data["last_known_state"]["controller"][
-                                    "current_temperature"
-                                ]
-                            )
-                            * (9 / 5)
-                        )
-                        + 32
-                    )
+                currentTempValue = self.coordinator.data["last_known_state"]["controller"]["current_temperature"]
+                if (currentTempValue == "null" or currentTempValue == None ):
+                    return "Unsupported"
                 else:
-                    return self.coordinator.data["last_known_state"]["controller"][
-                        "current_temperature"
-                    ]
+                    if self.options[CONF_UNIT] == "Imperial":
+                        return round(
+                            float(currentTempValue * (9 / 5)) + 32
+                        )
+                    else:
+                        return currentTempValue
             elif self._sensor == "gps":
                 if self.coordinator.data["last_known_state"]["gps_direction"] == None:
                     return "Unsupported"

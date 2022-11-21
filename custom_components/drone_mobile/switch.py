@@ -49,7 +49,7 @@ class Switch(DroneMobileEntity, SwitchEntity):
         await self.coordinator.hass.async_add_executor_job(
             self.coordinator.update_data_from_response, self.coordinator, response
         )
-        self._state = self.get_is_on_value(True)
+        self._state = self.get_is_on_value(True, True)
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs):
@@ -72,7 +72,7 @@ class Switch(DroneMobileEntity, SwitchEntity):
         await self.coordinator.hass.async_add_executor_job(
             self.coordinator.update_data_from_response, self.coordinator, response
         )
-        self._state = self.get_is_on_value(True)
+        self._state = self.get_is_on_value(True, False)
         self.async_write_ha_state()
 
     async def async_toggle(self, **kwargs):
@@ -81,16 +81,19 @@ class Switch(DroneMobileEntity, SwitchEntity):
             "Toggling %s " + self.switch, self.coordinator.data["vehicle_name"]
         )
         command_call = None
+        manualValue = False
         if self.switch == "remoteStart":
             if self.is_on:
                 command_call = self.coordinator.vehicle.remoteStop
             else:
                 command_call = self.coordinator.vehicle.remoteStart
+                manualValue = True
         elif self.switch == "panic":
             if self.is_on:
                 command_call = self.coordinator.vehicle.panic_off
             else:
                 command_call = self.coordinator.vehicle.panic_on
+                manualValue = True
         elif self.switch == "aux1":
             command_call = self.coordinator.vehicle.aux1
         elif self.switch == "aux2":
@@ -102,7 +105,7 @@ class Switch(DroneMobileEntity, SwitchEntity):
         await self.coordinator.hass.async_add_executor_job(
             self.coordinator.update_data_from_response, self.coordinator, response
         )
-        self._state = self.get_is_on_value(True)
+        self._state = self.get_is_on_value(True, manualValue)
         self.async_write_ha_state()
     
     @property
@@ -114,7 +117,7 @@ class Switch(DroneMobileEntity, SwitchEntity):
         return self.device_id
         
     # Need to remove @property decorator in order to be able to change logic based on where the call to is_on is made from.
-    def get_is_on_value(self, calledFromAction=False):
+    def get_is_on_value(self, calledFromAction=False, manualValue=False):
         """Determine if the switch is switched."""
         if self.switch == "remoteStart":
             if (
@@ -124,7 +127,7 @@ class Switch(DroneMobileEntity, SwitchEntity):
             ):
                 return None
             if calledFromAction:
-                return self.coordinator.data["remote_start_status"] == True
+                return self.coordinator.data["remote_start_status"] == manualValue
             else:
                 return (
                     self.coordinator.data["last_known_state"]["controller"]["engine_on"]
@@ -140,12 +143,15 @@ class Switch(DroneMobileEntity, SwitchEntity):
                 or self.coordinator.data["panic_status"] is None
             ):
                 return None
-            return self.coordinator.data["panic_status"] == True
+            if calledFromAction:
+                return self.coordinator.data["panic_status"] == manualValue
+            else:
+                return self.coordinator.data["panic_status"] == True
         # Aux1 and Aux2 are momentary switches that can only be turned on. So, we will set their value to off.
         elif self.switch == "aux1":
-            return False
+            return manualValue
         elif self.switch == "aux2":
-            return False
+            return manualValue
         else:
             _LOGGER.error("Entry not found in SWITCHES: " + self.switch)
 
