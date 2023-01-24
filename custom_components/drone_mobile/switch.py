@@ -84,9 +84,9 @@ class Switch(DroneMobileEntity, SwitchEntity):
         manualValue = False
         if self.switch == "remoteStart":
             if self.is_on:
-                command_call = self.coordinator.vehicle.remoteStop
+                command_call = self.coordinator.vehicle.stop
             else:
-                command_call = self.coordinator.vehicle.remoteStart
+                command_call = self.coordinator.vehicle.start
                 manualValue = True
         elif self.switch == "panic":
             if self.is_on:
