@@ -210,13 +210,12 @@ async def get_vehicles(hass: core.HomeAssistant, data):
     vehicleObject = Vehicle(data[CONF_USERNAME], data[CONF_PASSWORD])
     try:
         vehicles = await hass.async_add_executor_job(vehicleObject.getAllVehicles)
+        if not vehicles:
+            _LOGGER.error(
+                "Error communicating with DroneMobile"
+            )
+            raise CannotConnect
         return vehicles
     except Exception as ex:
         _LOGGER.error(ex)
         raise InvalidAuth from ex
-
-    if not vehicles:
-        _LOGGER.error(
-            "Error communicating with DroneMobile"
-        )
-        raise CannotConnect

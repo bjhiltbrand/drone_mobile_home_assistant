@@ -21,12 +21,12 @@
       }
     },
     "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]"
+      "cannot_connect": "Failed to connect to DroneMobile service.",
+      "invalid_auth": "Invalid credentials. Please try again.",
+      "unknown": "An unexpected error has occurred. Please check the logs."
     },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
+      "already_configured": "This account is already configured.",
       "no_available_vehicles": "There are no available vehicles to setup in Home Assistant."
     }
   },
