@@ -62,9 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     for platform in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, platform)
-        )
+        await hass.config_entries.async_forward_entry_setup(entry, platform)
 
     async def async_refresh_device_status_service(self):
         await hass.async_add_executor_job(refresh_device_status, hass, coordinator)

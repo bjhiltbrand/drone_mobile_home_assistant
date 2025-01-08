@@ -1,6 +1,6 @@
 import logging
 
-from homeassistant.components.lock import SUPPORT_OPEN, LockEntity
+from homeassistant.components.lock import LockEntityFeature, LockEntity
 
 from . import DroneMobileEntity
 from .const import DOMAIN, LOCKS
@@ -119,7 +119,7 @@ class Lock(DroneMobileEntity, LockEntity):
     def supported_features(self):
         """Flag supported features."""
         if self._lock == "trunk":
-            return SUPPORT_OPEN
+            return LockEntityFeature.OPEN
 
     @property
     def icon(self):
