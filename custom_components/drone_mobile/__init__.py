@@ -4,6 +4,12 @@ from datetime import timedelta
 import json
 import logging
 
+# Pre-import platforms to avoid asyncio import warning
+from . import lock
+from . import sensor
+from . import switch
+from . import device_tracker
+
 import async_timeout
 from drone_mobile import Vehicle
 import voluptuous as vol
@@ -12,6 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.const import Platform
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -33,7 +40,12 @@ from .const import (
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
-PLATFORMS = ["lock", "sensor", "switch", "device_tracker"]
+PLATFORMS = [
+    Platform.LOCK,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.DEVICE_TRACKER
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,8 +59,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     vehicleID = entry.data[CONF_VEHICLE_ID]
-    updateInterval = timedelta(seconds=(entry.options[CONF_UPDATE_INTERVAL] * 60))
-    overrideLockStateCheck = entry.options[CONF_OVERRIDE_LOCK_STATE_CHECK]
+    updateInterval = timedelta(seconds=(entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL) * 60))
+    overrideLockStateCheck = entry.options.get(CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK)
 
     coordinator = DroneMobileDataUpdateCoordinator(
         hass, username, password, updateInterval, overrideLockStateCheck, vehicleID
@@ -61,8 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    for platform in PLATFORMS:
-        await hass.config_entries.async_forward_entry_setup(entry, platform)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def async_refresh_device_status_service(self):
         await hass.async_add_executor_job(refresh_device_status, hass, coordinator)
@@ -104,7 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_update_options(hass, config_entry):
+async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
     options = {
         CONF_UNIT: config_entry.options.get(CONF_UNIT, DEFAULT_UNIT),
         CONF_UPDATE_INTERVAL: config_entry.options.get(

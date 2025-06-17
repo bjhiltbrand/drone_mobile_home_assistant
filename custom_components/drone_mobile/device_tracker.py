@@ -1,7 +1,7 @@
 from datetime import timedelta
 import logging
 
-from homeassistant.components.device_tracker.const import SourceType
+from homeassistant.components.device_tracker import SourceType
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 
 from . import DroneMobileEntity
