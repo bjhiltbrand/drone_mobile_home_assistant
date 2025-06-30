@@ -4,12 +4,6 @@ from datetime import timedelta
 import json
 import logging
 
-# Pre-import platforms to avoid asyncio import warning
-from . import lock
-from . import sensor
-from . import switch
-from . import device_tracker
-
 import async_timeout
 from drone_mobile import Vehicle
 import voluptuous as vol
