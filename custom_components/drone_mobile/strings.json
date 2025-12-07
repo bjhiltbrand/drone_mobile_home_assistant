@@ -3,46 +3,122 @@
     "step": {
       "user": {
         "title": "DroneMobile Configuration",
-        "description": "Please enter your DroneMobile credentials\nNOTE: Initial setup may take up to 30 seconds",
+        "description": "Enter your DroneMobile credentials. Initial setup may take up to 30 seconds.",
         "data": {
-          "username": "DroneMobile Username (Email)",
-          "password": "DroneMobile Password",
-          "save_token": "Save Authentication Tokens",
-          "units": "Unit of Measurement",
-          "update_interval": "Update Interval (In Minutes)",
-          "override_lock_state_check": "Send Lock Commands Regardless of State."
+          "username": "Email address",
+          "password": "Password",
+          "units": "Unit of measurement",
+          "update_interval": "Update interval (minutes)",
+          "override_lock_state_check": "Override lock state check"
+        },
+        "data_description": {
+          "username": "Your DroneMobile account email address",
+          "password": "Your DroneMobile account password",
+          "units": "Choose between Imperial (miles, °F) or Metric (km, °C)",
+          "update_interval": "How often to fetch vehicle data (2-60 minutes)",
+          "override_lock_state_check": "Send lock/unlock commands even if already in that state"
         }
       },
       "select_vehicle": {
         "title": "Select Vehicle",
-        "description": "Please select the DroneMobile vehicle you wish to add to Home Assistant.",
+        "description": "Select the vehicle you want to add to Home Assistant",
         "data": {
-          "vehicle_id": "Vehicle Name"
+          "vehicle_id": "Vehicle"
         }
       }
     },
     "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]"
+      "cannot_connect": "Unable to connect to DroneMobile. Please check your internet connection.",
+      "invalid_auth": "Invalid email or password. Please try again.",
+      "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
-      "no_available_vehicles": "There are no available vehicles to setup in Home Assistant."
+      "already_configured": "This vehicle is already configured in Home Assistant.",
+      "no_vehicles_available": "No vehicles available. All vehicles are already configured."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "DroneMobile Options",
-        "description": "Configure DroneMobile options",
+        "description": "Configure DroneMobile settings",
         "data": {
-          "save_token": "Save Authentication Tokens",
-          "units": "Unit of Measurement",
-          "update_interval": "Update Interval (In Minutes)",
-          "override_lock_state_check": "Send Lock Commands Regardless of State."
+          "units": "Unit of measurement",
+          "update_interval": "Update interval (minutes)",
+          "override_lock_state_check": "Override lock state check"
+        },
+        "data_description": {
+          "units": "Choose between Imperial (miles, °F) or Metric (km, °C)",
+          "update_interval": "How often to fetch vehicle data (2-60 minutes)",
+          "override_lock_state_check": "Send lock/unlock commands even if already in that state"
         }
       }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "odometer": {
+        "name": "Odometer"
+      },
+      "battery": {
+        "name": "Battery voltage"
+      },
+      "battery_percent": {
+        "name": "Battery level"
+      },
+      "temperature": {
+        "name": "Interior temperature"
+      },
+      "fuel_level": {
+        "name": "Fuel level"
+      },
+      "alarm": {
+        "name": "Alarm status",
+        "state": {
+          "armed": "Armed",
+          "disarmed": "Disarmed"
+        }
+      },
+      "last_refresh": {
+        "name": "Last update"
+      }
+    },
+    "lock": {
+      "door_lock": {
+        "name": "Door lock"
+      },
+      "trunk": {
+        "name": "Trunk"
+      }
+    },
+    "switch": {
+      "remote_start": {
+        "name": "Remote start"
+      },
+      "panic": {
+        "name": "Panic alarm"
+      },
+      "aux1": {
+        "name": "Auxiliary 1"
+      },
+      "aux2": {
+        "name": "Auxiliary 2"
+      }
+    },
+    "device_tracker": {
+      "location": {
+        "name": "Location"
+      }
+    }
+  },
+  "services": {
+    "refresh_device_status": {
+      "name": "Refresh device status",
+      "description": "Poll the vehicle for latest status. Use sparingly as it consumes data and vehicle battery."
+    },
+    "dump_device_data": {
+      "name": "Dump device data",
+      "description": "Export all cached vehicle data to a JSON file in your config directory."
     }
   }
 }

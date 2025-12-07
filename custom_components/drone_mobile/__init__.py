@@ -1,18 +1,22 @@
-"""The DroneMobile integration."""
+"""The DroneMobile integration for Home Assistant."""
+from __future__ import annotations
+
 import asyncio
 from datetime import timedelta
-import json
 import logging
+from typing import Any
 
-import async_timeout
-from drone_mobile import Vehicle
-import voluptuous as vol
+from drone_mobile import DroneMobileClient
+from drone_mobile.exceptions import (
+    AuthenticationError,
+    DroneMobileException,
+    NetworkError,
+)
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.const import Platform
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -20,259 +24,236 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    CONF_OVERRIDE_LOCK_STATE_CHECK,
     CONF_UNIT,
     CONF_UPDATE_INTERVAL,
     CONF_VEHICLE_ID,
-    CONF_OVERRIDE_LOCK_STATE_CHECK,
+    DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
     DEFAULT_UNIT,
     DEFAULT_UPDATE_INTERVAL,
-    DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
     DOMAIN,
     MANUFACTURER,
-    VEHICLE,
 )
-
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
-
-PLATFORMS = [
-    Platform.LOCK,
-    Platform.SENSOR,
-    Platform.SWITCH,
-    Platform.DEVICE_TRACKER
-]
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the DroneMobile component."""
-    hass.data.setdefault(DOMAIN, {})
-    return True
+PLATFORMS: list[Platform] = [
+    Platform.LOCK,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.DEVICE_TRACKER,
+]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up DroneMobile from a config entry."""
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
-    vehicleID = entry.data[CONF_VEHICLE_ID]
-    updateInterval = timedelta(seconds=(entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL) * 60))
-    overrideLockStateCheck = entry.options.get(CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK)
-
-    coordinator = DroneMobileDataUpdateCoordinator(
-        hass, username, password, updateInterval, overrideLockStateCheck, vehicleID
+    vehicle_id = entry.data[CONF_VEHICLE_ID]
+    
+    update_interval = timedelta(
+        minutes=entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    )
+    override_lock_state_check = entry.options.get(
+        CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
     )
 
-    if not entry.options:
-        await async_update_options(hass, entry)
+    # Create coordinator
+    coordinator = DroneMobileDataUpdateCoordinator(
+        hass=hass,
+        username=username,
+        password=password,
+        vehicle_id=vehicle_id,
+        update_interval=update_interval,
+        override_lock_state_check=override_lock_state_check,
+    )
 
-    await coordinator.async_config_entry_first_refresh()  # Get initial data
+    # Perform initial data fetch
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except AuthenticationError as err:
+        raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+    except DroneMobileException as err:
+        raise ConfigEntryNotReady(f"Failed to connect: {err}") from err
 
+    # Store coordinator
+    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    async def async_refresh_device_status_service(self):
-        await hass.async_add_executor_job(refresh_device_status, hass, coordinator)
-        await coordinator.async_refresh()
+    # Register services
+    await _async_register_services(hass, coordinator)
 
-    async def async_dump_device_data_service(self):
-        await hass.async_add_executor_job(dump_device_data, hass, coordinator)
-
-    async def async_clear_temp_token_service(self):
-        await hass.async_add_executor_job(clear_temp_token, hass, coordinator)
-
-    async def async_replace_token_service(self):
-        await hass.async_add_executor_job(replace_token, hass, coordinator)
-
-    hass.services.async_register(
-        DOMAIN,
-        f"refresh_device_status_{coordinator.data['vehicle_name'].replace(' ', '_')}",
-        async_refresh_device_status_service,
-    )
-
-    hass.services.async_register(
-        DOMAIN,
-        f"dump_device_data_{coordinator.data['vehicle_name'].replace(' ', '_')}",
-        async_dump_device_data_service,
-    )
-
-    hass.services.async_register(
-        DOMAIN,
-        "clear_temp_token",
-        async_clear_temp_token_service,
-    )
-
-    hass.services.async_register(
-        DOMAIN,
-        "replace_token",
-        async_replace_token_service,
-    )
+    # Register update listener for options changes
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
 
     return True
 
 
-async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
-    options = {
-        CONF_UNIT: config_entry.options.get(CONF_UNIT, DEFAULT_UNIT),
-        CONF_UPDATE_INTERVAL: config_entry.options.get(
-            CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
-        ),
-        CONF_OVERRIDE_LOCK_STATE_CHECK: config_entry.options.get(
-            CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
-        ),
-    }
-    hass.config_entries.async_update_entry(config_entry, options=options)
+async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
-def refresh_device_status(hass, coordinator):
-    _LOGGER.debug("Refreshing Device Status")
-    response = coordinator.vehicle.device_status(coordinator.data["device_key"])
-    coordinator.update_data_from_response(coordinator, response)
-
-
-def dump_device_data(hass, coordinator):
-    _LOGGER.debug("Dumping Device Data")
-    with open(
-        "./drone_mobile_device_data_" + coordinator.data["vehicle_name"] + ".txt", "w"
-    ) as outfile:
-        json.dump(coordinator.data, outfile)
-
-
-def clear_temp_token(hass, coordinator):
-    _LOGGER.debug("Clearing Tokens")
-    coordinator.vehicle.clearTempToken()
-
-
-def replace_token(hass, coordinator):
-    _LOGGER.debug("Replacing Tokens")
-    coordinator.vehicle.replaceToken()
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in PLATFORMS
-            ]
-        )
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        # Close the client session
+        if coordinator.client:
+            await hass.async_add_executor_job(coordinator.client.close)
 
     return unload_ok
 
 
-class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
-    """DataUpdateCoordinator to handle fetching new data about the vehicle."""
+async def _async_register_services(
+    hass: HomeAssistant, coordinator: DroneMobileDataUpdateCoordinator
+) -> None:
+    """Register services for the vehicle."""
+    vehicle_name = coordinator.vehicle.name.replace(" ", "_").lower()
 
-    def __init__(self, hass, username, password, updateInterval, overrideLockStateCheck, vehicleID):
-        """Initialize the coordinator and set up the Vehicle object."""
-        self._hass = hass
-        self.username = username
-        self.password = password
-        self.vehicle = Vehicle(username, password)
-        self._vehicleID = vehicleID
-        self._override_lock_state_check = overrideLockStateCheck
-        self._available = True
+    async def async_refresh_device_status(call: ServiceCall) -> None:
+        """Service to refresh device status."""
+        _LOGGER.debug("Refreshing device status for %s", coordinator.vehicle.name)
+        try:
+            await hass.async_add_executor_job(coordinator.vehicle.poll_status)
+            await coordinator.async_request_refresh()
+        except DroneMobileException as err:
+            _LOGGER.error("Failed to refresh device status: %s", err)
+
+    async def async_dump_device_data(call: ServiceCall) -> None:
+        """Service to dump device data to file."""
+        _LOGGER.debug("Dumping device data for %s", coordinator.vehicle.name)
+        try:
+            import json
+            from pathlib import Path
+
+            output_file = (
+                Path(hass.config.config_dir)
+                / f"drone_mobile_data_{vehicle_name}.json"
+            )
+            
+            data = {
+                "vehicle_info": coordinator.vehicle.info.raw_data,
+                "vehicle_status": coordinator.data.raw_data if coordinator.data else {},
+            }
+            
+            await hass.async_add_executor_job(
+                lambda: output_file.write_text(json.dumps(data, indent=2))
+            )
+            _LOGGER.info("Device data dumped to %s", output_file)
+        except Exception as err:
+            _LOGGER.error("Failed to dump device data: %s", err)
+
+    # Register services with vehicle-specific names
+    hass.services.async_register(
+        DOMAIN,
+        f"refresh_device_status_{vehicle_name}",
+        async_refresh_device_status,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        f"dump_device_data_{vehicle_name}",
+        async_dump_device_data,
+    )
+
+
+class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching DroneMobile data."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        username: str,
+        password: str,
+        vehicle_id: str,
+        update_interval: timedelta,
+        override_lock_state_check: bool,
+    ) -> None:
+        """Initialize the coordinator."""
+        self.client: DroneMobileClient | None = None
+        self.vehicle = None
+        self._username = username
+        self._password = password
+        self._vehicle_id = vehicle_id
+        self.override_lock_state_check = override_lock_state_check
 
         super().__init__(
             hass,
             _LOGGER,
-            name=DOMAIN,
-            update_method=self._async_update_data,
-            update_interval=updateInterval,
+            name=f"{DOMAIN}_{vehicle_id}",
+            update_interval=update_interval,
         )
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> Any:
         """Fetch data from DroneMobile."""
-
-        _LOGGER.debug(f"Retrieving vehicles for DroneMobile account")
-
         try:
-            async with async_timeout.timeout(30):
-                vehicle = await self._hass.async_add_executor_job(
-                    self.vehicle.vehicle_status,
-                    self._vehicleID,  # Fetch new vehicle status
+            # Initialize client if needed
+            if self.client is None:
+                self.client = await self.hass.async_add_executor_job(
+                    DroneMobileClient, self._username, self._password
+                )
+                
+                # Get the vehicle
+                self.vehicle = await self.hass.async_add_executor_job(
+                    self.client.get_vehicle, self._vehicle_id
+                )
+                
+                _LOGGER.debug(
+                    "Initialized DroneMobile client for vehicle: %s",
+                    self.vehicle.name,
                 )
 
-                # If data has now been fetched but was previously unavailable, log and reset
-                if not self._available:
-                    _LOGGER.debug(f"Restored connection to DroneMobile")
-                    self._available = True
-
-                return vehicle
-
-        except Exception as ex:
-            self._available = False  # Mark as unavailable
-            _LOGGER.warning(str(ex))
-            _LOGGER.warning("Error communicating with DroneMobile for %s", self._vehicleID)
-            raise UpdateFailed(f"Error communicating with DroneMobile") from ex
-
-    def update_data_from_response(self, coordinator, json_command_response):
-        if json_command_response["command_success"]:
-            """Overwrite values in coordinator data to update and match returned value."""
-            for key in json_command_response:
-                if key == "latitude" or key == "longitude" or key == "latlng":
-                    if key not in coordinator.data["last_known_state"]:
-                        coordinator.data["last_known_state"][
-                            key
-                        ] = json_command_response[key]
-                if key == "controller":
-                    for key in json_command_response["controller"]:
-                        if key in coordinator.data["last_known_state"]["controller"]:
-                            coordinator.data["last_known_state"]["controller"][
-                                key
-                            ] = json_command_response["controller"][key]
-                elif key in coordinator.data["last_known_state"]:
-                    coordinator.data["last_known_state"][key] = json_command_response[
-                        key
-                    ]
-                elif key in coordinator.data:
-                    coordinator.data[key] = json_command_response[key]
-        else:
-            _LOGGER.warning(
-                "Unable to send "
-                + json_command_response["command_sent"]
-                + " command to "
-                + coordinator.data["vehicle_name"]
-                + "."
+            # Fetch vehicle status
+            status = await self.hass.async_add_executor_job(
+                self.vehicle.get_status, False  # Don't use cache
             )
 
+            _LOGGER.debug(
+                "Updated status for %s: Running=%s, Locked=%s",
+                self.vehicle.name,
+                status.is_running,
+                status.is_locked,
+            )
 
-class DroneMobileEntity(CoordinatorEntity):
-    """Defines a base DroneMobile entity."""
+            return status
+
+        except AuthenticationError as err:
+            raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+        except NetworkError as err:
+            raise UpdateFailed(f"Network error: {err}") from err
+        except DroneMobileException as err:
+            raise UpdateFailed(f"Error communicating with DroneMobile: {err}") from err
+
+
+class DroneMobileEntity(CoordinatorEntity[DroneMobileDataUpdateCoordinator]):
+    """Base class for DroneMobile entities."""
+
+    _attr_has_entity_name = True
 
     def __init__(
         self,
-        *,
-        device_id: str,
-        name: str,
         coordinator: DroneMobileDataUpdateCoordinator,
-    ):
+        entity_type: str,
+    ) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
-        self._device_id = device_id
-        self._name = name
-
-    @property
-    def name(self):
-        """Return the name of the entity."""
-        return self._name
-
-    @property
-    def unique_id(self):
-        """Return the unique ID of the entity."""
-        return f"{self.coordinator.data['id']}-{self._device_id}"
-
-    @property
-    def device_info(self):
-        """Return device information about this device."""
-        if self._device_id is None:
-            return None
-
-        return {
-            "identifiers": {(DOMAIN, self.coordinator.data["id"])},
-            "name": self.coordinator.data["vehicle_name"],
-            "model": self.coordinator.data["last_known_state"]["controller_model"],
+        
+        self._attr_unique_id = f"{coordinator.vehicle.vehicle_id}_{entity_type}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, coordinator.vehicle.vehicle_id)},
+            "name": coordinator.vehicle.name,
             "manufacturer": MANUFACTURER,
+            "model": coordinator.vehicle.info.make or "Unknown",
+            "sw_version": coordinator.vehicle.info.year,
         }
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None

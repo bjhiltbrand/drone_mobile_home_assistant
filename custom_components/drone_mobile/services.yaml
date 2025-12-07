@@ -1,12 +1,10 @@
-refresh_device_status:
-    name: refresh_device_status_VEHICLE_NAME_WITH_SPACES_REPLACED_BY_UNDERSCORES
-    description: Poll vehicle for latest status. Use this sparingly, as it will consume data and vehicle battery.
-dump_device_data:
-    name: dump_device_data_VEHICLE_NAME_WITH_SPACES_REPLACED_BY_UNDERSCORES
-    description: Dump cached json payload containing all vehicle data.
-clear_temp_token:
-    name: clear_temp_token
-    description: Clear the cached tokens.
-replace_token:
-    name: replace_token
-    description: Replace the cached tokens.
+# Services are now dynamically registered per vehicle
+# Format: drone_mobile.refresh_device_status_[vehicle_name]
+# Format: drone_mobile.dump_device_data_[vehicle_name]
+
+# Example for a vehicle named "My Car":
+# - drone_mobile.refresh_device_status_my_car
+# - drone_mobile.dump_device_data_my_car
+
+# Services will appear automatically in Home Assistant's Developer Tools > Services
+# after the integration is set up.

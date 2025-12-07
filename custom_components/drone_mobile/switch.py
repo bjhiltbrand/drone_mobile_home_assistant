@@ -1,162 +1,201 @@
+"""Support for DroneMobile switches."""
+from __future__ import annotations
+
 import logging
+from typing import Any
+
+from drone_mobile.exceptions import CommandFailedError, DroneMobileException
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import DroneMobileEntity
-from .const import DOMAIN, SWITCHES
+from . import DroneMobileDataUpdateCoordinator, DroneMobileEntity
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Switch Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
-    for key, value in SWITCHES.items():
-        async_add_entities([Switch(entry, key, config_entry.options)], True)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up DroneMobile switches based on a config entry."""
+    coordinator: DroneMobileDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    entities = [
+        DroneMobileRemoteStartSwitch(coordinator),
+        DroneMobilePanicSwitch(coordinator),
+        DroneMobileAux1Switch(coordinator),
+        DroneMobileAux2Switch(coordinator),
+    ]
+
+    async_add_entities(entities)
 
 
-class Switch(DroneMobileEntity, SwitchEntity):
-    def __init__(self, coordinator, switch, options):
-        """Initialize."""
-        self._device_id="dronemobile_" + switch
-        self.coordinator=coordinator
-        self.switch = switch
-        self._state = self.is_on
-        # Required for HA 2022.7
-        self.coordinator_context = object()
+class DroneMobileRemoteStartSwitch(DroneMobileEntity, SwitchEntity):
+    """Representation of a DroneMobile remote start switch."""
 
-    async def async_turn_on(self, **kwargs):
-        """switches on the vehicle device."""
+    _attr_name = "Remote start"
+    _attr_icon = "mdi:car-key"
+
+    def __init__(self, coordinator: DroneMobileDataUpdateCoordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator, "remote_start")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the engine is running."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.is_running
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Start the vehicle."""
         if self.is_on:
+            _LOGGER.debug(
+                "Vehicle %s is already running, skipping",
+                self.coordinator.vehicle.name,
+            )
             return
-        _LOGGER.debug(
-            "switching on %s " + self.switch, self.coordinator.data["vehicle_name"]
-        )
-        command_call = None
-        if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.start
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic_on
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.aux2
-        else:
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, True)
-        self.async_write_ha_state()
 
-    async def async_turn_off(self, **kwargs):
-        """switches off the vehicle device."""
-        if not self.is_on:
-            return
-        _LOGGER.debug(
-            "Switching off %s " + self.switch, self.coordinator.data["vehicle_name"]
-        )
-        command_call = None
-        if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.stop
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic_off
-        else:
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, False)
-        self.async_write_ha_state()
-
-    async def async_toggle(self, **kwargs):
-        """Toggles the vehicle switch."""
-        _LOGGER.debug(
-            "Toggling %s " + self.switch, self.coordinator.data["vehicle_name"]
-        )
-        command_call = None
-        manualValue = False
-        if self.switch == "remoteStart":
-            if self.is_on:
-                command_call = self.coordinator.vehicle.stop
-            else:
-                command_call = self.coordinator.vehicle.start
-                manualValue = True
-        elif self.switch == "panic":
-            if self.is_on:
-                command_call = self.coordinator.vehicle.panic_off
-            else:
-                command_call = self.coordinator.vehicle.panic_on
-                manualValue = True
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.aux2
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, manualValue)
-        self.async_write_ha_state()
-    
-    @property
-    def name(self):
-        return self.coordinator.data["vehicle_name"] + "_" + self.switch + "_Switch"
-
-    @property
-    def device_id(self):
-        return self.device_id
+        _LOGGER.debug("Starting vehicle %s", self.coordinator.vehicle.name)
         
-    # Need to remove @property decorator in order to be able to change logic based on where the call to is_on is made from.
-    def get_is_on_value(self, calledFromAction=False, manualValue=False):
-        """Determine if the switch is switched."""
-        if self.switch == "remoteStart":
-            if (
-                self.coordinator.data is None
-                or self.coordinator.data["last_known_state"]["controller"]["engine_on"]
-                is None
-            ):
-                return None
-            if calledFromAction:
-                return self.coordinator.data["remote_start_status"] == manualValue
-            else:
-                return (
-                    self.coordinator.data["last_known_state"]["controller"]["engine_on"]
-                    == True
-                    or self.coordinator.data["last_known_state"]["controller"][
-                        "ignition_on"
-                    ]
-                    == True
-                )
-        elif self.switch == "panic":
-            if (
-                self.coordinator.data is None
-                or self.coordinator.data["panic_status"] is None
-            ):
-                return None
-            if calledFromAction:
-                return self.coordinator.data["panic_status"] == manualValue
-            else:
-                return self.coordinator.data["panic_status"] == True
-        # Aux1 and Aux2 are momentary switches that can only be turned on. So, we will set their value to off.
-        elif self.switch == "aux1":
-            return manualValue
-        elif self.switch == "aux2":
-            return manualValue
-        else:
-            _LOGGER.error("Entry not found in SWITCHES: " + self.switch)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.start)
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to start vehicle: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
 
-    is_on = property(get_is_on_value)
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Stop the vehicle."""
+        if not self.is_on:
+            _LOGGER.debug(
+                "Vehicle %s is already stopped, skipping",
+                self.coordinator.vehicle.name,
+            )
+            return
+
+        _LOGGER.debug("Stopping vehicle %s", self.coordinator.vehicle.name)
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.stop)
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to stop vehicle: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
+
+
+class DroneMobilePanicSwitch(DroneMobileEntity, SwitchEntity):
+    """Representation of a DroneMobile panic switch."""
+
+    _attr_name = "Panic alarm"
+    _attr_icon = "mdi:alarm-light"
+
+    def __init__(self, coordinator: DroneMobileDataUpdateCoordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator, "panic")
+        self._panic_active = False
 
     @property
-    def icon(self):
-        return SWITCHES[self.switch]["icon"]
+    def is_on(self) -> bool:
+        """Return true if panic is active."""
+        return self._panic_active
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Activate panic alarm."""
+        _LOGGER.debug("Activating panic for vehicle %s", self.coordinator.vehicle.name)
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.panic_on)
+            self._panic_active = True
+            self.async_write_ha_state()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to activate panic: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Deactivate panic alarm."""
+        _LOGGER.debug("Deactivating panic for vehicle %s", self.coordinator.vehicle.name)
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.panic_off)
+            self._panic_active = False
+            self.async_write_ha_state()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to deactivate panic: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
+
+
+class DroneMobileAux1Switch(DroneMobileEntity, SwitchEntity):
+    """Representation of a DroneMobile auxiliary 1 switch."""
+
+    _attr_name = "Auxiliary 1"
+    _attr_icon = "mdi:numeric-1-box"
+
+    def __init__(self, coordinator: DroneMobileDataUpdateCoordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator, "aux1")
+
+    @property
+    def is_on(self) -> bool:
+        """Return false - this is a momentary switch."""
+        return False
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Trigger auxiliary 1."""
+        _LOGGER.debug("Triggering AUX1 for vehicle %s", self.coordinator.vehicle.name)
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.aux1)
+            # Momentary switch - immediately return to off state
+            self.async_write_ha_state()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to trigger AUX1: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off - no-op for momentary switch."""
+        pass
+
+
+class DroneMobileAux2Switch(DroneMobileEntity, SwitchEntity):
+    """Representation of a DroneMobile auxiliary 2 switch."""
+
+    _attr_name = "Auxiliary 2"
+    _attr_icon = "mdi:numeric-2-box"
+
+    def __init__(self, coordinator: DroneMobileDataUpdateCoordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator, "aux2")
+
+    @property
+    def is_on(self) -> bool:
+        """Return false - this is a momentary switch."""
+        return False
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Trigger auxiliary 2."""
+        _LOGGER.debug("Triggering AUX2 for vehicle %s", self.coordinator.vehicle.name)
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.aux2)
+            # Momentary switch - immediately return to off state
+            self.async_write_ha_state()
+        except CommandFailedError as err:
+            raise HomeAssistantError(f"Failed to trigger AUX2: {err}") from err
+        except DroneMobileException as err:
+            raise HomeAssistantError(f"Error communicating with vehicle: {err}") from err
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off - no-op for momentary switch."""
+        pass
