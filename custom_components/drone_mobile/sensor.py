@@ -1,209 +1,150 @@
 """Support for DroneMobile sensors."""
-from __future__ import annotations
-
-from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime
 import logging
-from typing import Any
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-    SensorStateClass,
-)
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    PERCENTAGE,
-    UnitOfElectricPotential,
-    UnitOfLength,
-    UnitOfTemperature,
-)
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.typing import StateType
-from homeassistant.util import dt as dt_util
+from homeassistant.util import dt
 
-from . import DroneMobileDataUpdateCoordinator, DroneMobileEntity
-from .const import CONF_UNIT, DOMAIN
+from . import DroneMobileEntity
+from .const import CONF_UNIT, DOMAIN, SENSORS
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
-class DroneMobileSensorEntityDescription(SensorEntityDescription):
-    """Describes DroneMobile sensor entity."""
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Add the Entities from the config."""
+    entry = hass.data[DOMAIN][config_entry.entry_id]
+    entities = []
 
-    value_fn: Callable[[Any, str], StateType] | None = None
-    available_fn: Callable[[Any], bool] | None = None
+    for key, value in SENSORS.items():
+        entities.append(CarSensor(entry, key, config_entry.options))
 
-
-def get_odometer_value(status: Any, unit: str) -> float | None:
-    """Get odometer value in correct units."""
-    if not status or not status.odometer:
-        return None
-    
-    if unit == "Imperial":
-        return status.odometer
-    # Convert miles to kilometers
-    return round(status.odometer * 1.60934, 2)
+    async_add_entities(entities, True)
 
 
-def get_temperature_value(status: Any, unit: str) -> float | None:
-    """Get temperature value in correct units."""
-    if not status or status.interior_temperature is None:
-        return None
-    
-    temp_celsius = status.interior_temperature
-    
-    if unit == "Imperial":
-        # Convert Celsius to Fahrenheit
-        return round((temp_celsius * 9 / 5) + 32, 1)
-    return temp_celsius
-
-
-SENSOR_DESCRIPTIONS: tuple[DroneMobileSensorEntityDescription, ...] = (
-    DroneMobileSensorEntityDescription(
-        key="odometer",
-        name="Odometer",
-        icon="mdi:counter",
-        device_class=SensorDeviceClass.DISTANCE,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        native_unit_of_measurement=UnitOfLength.MILES,
-        value_fn=lambda status, unit: get_odometer_value(status, unit),
-    ),
-    DroneMobileSensorEntityDescription(
-        key="battery",
-        name="Battery voltage",
-        icon="mdi:car-battery",
-        device_class=SensorDeviceClass.VOLTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-        value_fn=lambda status, unit: status.battery_voltage if status else None,
-        suggested_display_precision=1,
-    ),
-    DroneMobileSensorEntityDescription(
-        key="battery_percent",
-        name="Battery level",
-        icon="mdi:battery",
-        device_class=SensorDeviceClass.BATTERY,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        value_fn=lambda status, unit: status.battery_percent if status else None,
-    ),
-    DroneMobileSensorEntityDescription(
-        key="temperature",
-        name="Interior temperature",
-        icon="mdi:thermometer",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value_fn=lambda status, unit: get_temperature_value(status, unit),
-        available_fn=lambda status: status and status.interior_temperature is not None,
-    ),
-    DroneMobileSensorEntityDescription(
-        key="fuel_level",
-        name="Fuel level",
-        icon="mdi:gas-station",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        value_fn=lambda status, unit: status.fuel_level if status else None,
-        available_fn=lambda status: status and status.fuel_level is not None,
-    ),
-    DroneMobileSensorEntityDescription(
-        key="alarm",
-        name="Alarm status",
-        icon="mdi:shield-car",
-        device_class=SensorDeviceClass.ENUM,
-        options=["armed", "disarmed"],
-        value_fn=lambda status, unit: "armed" if status and status.is_locked else "disarmed",
-    ),
-    DroneMobileSensorEntityDescription(
-        key="last_refresh",
-        name="Last update",
-        icon="mdi:clock-outline",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda status, unit: (
-            dt_util.as_local(status.last_updated) if status and status.last_updated else None
-        ),
-    ),
-)
-
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up DroneMobile sensors based on a config entry."""
-    coordinator: DroneMobileDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    
-    entities = [
-        DroneMobileSensor(coordinator, description, entry.options.get(CONF_UNIT, "Imperial"))
-        for description in SENSOR_DESCRIPTIONS
-    ]
-    
-    async_add_entities(entities)
-
-
-class DroneMobileSensor(DroneMobileEntity, SensorEntity):
+class CarSensor(DroneMobileEntity, SensorEntity):
     """Representation of a DroneMobile sensor."""
 
-    entity_description: DroneMobileSensorEntityDescription
-
-    def __init__(
-        self,
-        coordinator: DroneMobileDataUpdateCoordinator,
-        description: DroneMobileSensorEntityDescription,
-        unit: str,
-    ) -> None:
+    def __init__(self, coordinator, sensor: str, options: dict):
         """Initialize the sensor."""
-        super().__init__(coordinator, description.key)
-        self.entity_description = description
-        self._unit = unit
-        self._attr_name = description.name
+        super().__init__(
+            device_id=f"dronemobile_{sensor}",
+            name=f"{coordinator.data['vehicle_name']}_{sensor}",
+            coordinator=coordinator,
+        )
+        self._sensor = sensor
+        self.options = options
+        self._attr = {}
+        # Required for HA 2022.7
+        self.coordinator_context = object()
 
-        # Update unit of measurement for distance based on user preference
-        if description.key == "odometer":
-            if unit == "Metric":
-                self._attr_native_unit_of_measurement = UnitOfLength.KILOMETERS
-        
-        # Update unit for temperature
-        if description.key == "temperature":
-            if unit == "Imperial":
-                self._attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    def get_value(self, ftype: str) -> StateType | dict | None:
+        """Get sensor value based on type."""
+        # Get the status object if available
+        status = self.coordinator.data.get("_status")
+
+        if ftype == "state":
+            if self._sensor == "odometer":
+                if not status or status.odometer is None:
+                    return None
+                mileage = status.odometer
+                if self.options.get(CONF_UNIT) == "Metric":
+                    return round(mileage * 1.60934, 1)
+                return mileage
+
+            elif self._sensor == "battery":
+                if not status:
+                    return None
+                return status.battery_voltage
+
+            elif self._sensor == "temperature":
+                if not status or status.interior_temperature is None:
+                    return "Unsupported"
+                temp_c = status.interior_temperature
+                if self.options.get(CONF_UNIT) == "Imperial":
+                    return round((temp_c * 9 / 5) + 32, 1)
+                return temp_c
+
+            elif self._sensor == "gps":
+                # GPS direction not available in new API
+                return "N/A"
+
+            elif self._sensor == "alarm":
+                if not status:
+                    return None
+                return "Armed" if status.is_locked else "Disarmed"
+
+            elif self._sensor == "ignitionStatus":
+                if not status:
+                    return None
+                return "On" if status.is_running else "Off"
+
+            elif self._sensor == "engineStatus":
+                if not status:
+                    return None
+                if status.is_running:
+                    return "Running"
+                # Update remote start status
+                if self.coordinator.data.get("remote_start_status"):
+                    self.coordinator.data["remote_start_status"] = False
+                return "Off"
+
+            elif self._sensor == "doorStatus":
+                # Door status inferred from lock state
+                if not status:
+                    return None
+                return "Closed" if status.is_locked else "Unknown"
+
+            elif self._sensor == "trunkStatus":
+                # Trunk status not directly available in new API
+                return "Unknown"
+
+            elif self._sensor == "hoodStatus":
+                # Hood status not directly available in new API
+                return "Unknown"
+
+            elif self._sensor == "lastRefresh":
+                if not status or not status.last_updated:
+                    return None
+                return dt.as_local(status.last_updated)
+
+        elif ftype == "measurement":
+            if self._sensor == "odometer":
+                return "mi" if self.options.get(CONF_UNIT) == "Imperial" else "km"
+            elif self._sensor == "battery":
+                return "V"
+            elif self._sensor == "temperature":
+                return "°F" if self.options.get(CONF_UNIT) == "Imperial" else "°C"
+            return None
+
+        elif ftype == "attribute":
+            if self._sensor == "battery" and status:
+                return {"Battery Voltage": status.battery_voltage}
+            elif self._sensor in ["odometer", "temperature", "gps", "alarm", "ignitionStatus",
+                                   "engineStatus", "doorStatus", "trunkStatus", "hoodStatus"]:
+                # Return raw data for debugging
+                return {"raw_data": self.coordinator.data} if status else None
+            return None
+
+        return None
 
     @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
-        if self.entity_description.value_fn is None:
-            return None
-        
-        return self.entity_description.value_fn(self.coordinator.data, self._unit)
+        return self.get_value("state")
 
     @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        if not super().available:
-            return False
-        
-        if self.entity_description.available_fn is not None:
-            return self.entity_description.available_fn(self.coordinator.data)
-        
-        return True
+    def extra_state_attributes(self) -> dict | None:
+        """Return the state attributes."""
+        return self.get_value("attribute")
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return entity specific state attributes."""
-        if not self.coordinator.data:
-            return None
-        
-        # For odometer, add raw data
-        if self.entity_description.key == "odometer":
-            return {
-                "vehicle_id": self.coordinator.vehicle.vehicle_id,
-                "last_updated": self.coordinator.data.last_updated,
-            }
-        
-        return None
+    def native_unit_of_measurement(self) -> str | None:
+        """Return the unit of measurement."""
+        return self.get_value("measurement")
+
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return SENSORS[self._sensor]["icon"]

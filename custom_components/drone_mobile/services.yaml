@@ -1,10 +1,17 @@
-# Services are now dynamically registered per vehicle
-# Format: drone_mobile.refresh_device_status_[vehicle_name]
-# Format: drone_mobile.dump_device_data_[vehicle_name]
+refresh_device_status:
+  name: Refresh Device Status
+  description: >
+    Poll the vehicle's DroneMobile device for the latest status information.
+    Use sparingly as this consumes vehicle battery and cellular data.
+    The service name includes your vehicle name with spaces replaced by underscores:
+    drone_mobile.refresh_device_status_VEHICLE_NAME
+  fields: {}
 
-# Example for a vehicle named "My Car":
-# - drone_mobile.refresh_device_status_my_car
-# - drone_mobile.dump_device_data_my_car
-
-# Services will appear automatically in Home Assistant's Developer Tools > Services
-# after the integration is set up.
+dump_device_data:
+  name: Dump Device Data
+  description: >
+    Export the currently cached vehicle data to a JSON file in your Home Assistant
+    config directory. Useful for debugging and support requests.
+    The service name includes your vehicle name with spaces replaced by underscores:
+    drone_mobile.dump_device_data_VEHICLE_NAME
+  fields: {}

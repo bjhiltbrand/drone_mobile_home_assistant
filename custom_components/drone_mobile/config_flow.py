@@ -12,35 +12,66 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    CONF_OVERRIDE_LOCK_STATE_CHECK,
-    CONF_UNIT,
-    CONF_UNITS,
+    CONF_UNIT_SYSTEM,
     CONF_UPDATE_INTERVAL,
-    CONF_VEHICLE_ID,
-    DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
-    DEFAULT_UNIT,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_UNIT_SYSTEM,
     DOMAIN,
+    ERROR_AUTH,
+    ERROR_CANNOT_CONNECT,
+    ERROR_UNKNOWN,
+    MAX_UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    UNIT_SYSTEM_IMPERIAL,
+    UNIT_SYSTEM_METRIC,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+CONF_VEHICLE = "vehicle"
+
+
+async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect.
+    
+    Data has the keys from DATA_SCHEMA with values provided by the user.
+    """
+    try:
+        client = DroneMobileClient(data[CONF_USERNAME], data[CONF_PASSWORD])
+        # Client authenticates automatically in 0.3.0
+    except AuthenticationError as err:
+        raise ValueError(ERROR_AUTH) from err
+    except DroneMobileException as err:
+        raise ValueError(ERROR_CANNOT_CONNECT) from err
+
+    # Get vehicles to verify connection
+    try:
+        vehicles = await hass.async_add_executor_job(client.get_vehicles)
+    except DroneMobileException as err:
+        raise ValueError(ERROR_CANNOT_CONNECT) from err
+    
+    if not vehicles:
+        raise ValueError("No vehicles found")
+
+    return {
+        "title": f"DroneMobile ({data[CONF_USERNAME]})",
+        "vehicles": vehicles,
+    }
 
 
 class DroneMobileConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for DroneMobile."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
+        self._vehicles: list | None = None
         self._username: str | None = None
         self._password: str | None = None
-        self._unit: str = DEFAULT_UNIT
-        self._update_interval: int = DEFAULT_UPDATE_INTERVAL
-        self._override_lock_state_check: bool = DEFAULT_OVERRIDE_LOCK_STATE_CHECK
-        self._vehicles: dict[str, str] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -50,161 +81,161 @@ class DroneMobileConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                # Validate credentials
-                await self._async_validate_credentials(
-                    user_input[CONF_USERNAME],
-                    user_input[CONF_PASSWORD],
-                )
-
-                # Store credentials
+                info = await validate_input(self.hass, user_input)
+                
+                # Store credentials and vehicles for vehicle selection step
                 self._username = user_input[CONF_USERNAME]
                 self._password = user_input[CONF_PASSWORD]
-                self._unit = user_input[CONF_UNIT]
-                self._update_interval = user_input[CONF_UPDATE_INTERVAL]
-                self._override_lock_state_check = user_input[CONF_OVERRIDE_LOCK_STATE_CHECK]
-
-                # Move to vehicle selection
-                return await self.async_step_select_vehicle()
-
-            except AuthenticationError:
-                errors["base"] = "invalid_auth"
-            except DroneMobileException:
-                errors["base"] = "cannot_connect"
+                self._vehicles = info["vehicles"]
+                
+                # If only one vehicle, skip selection and configure directly
+                if len(self._vehicles) == 1:
+                    vehicle = self._vehicles[0]
+                    
+                    # Check if already configured
+                    await self.async_set_unique_id(vehicle.vehicle_id)
+                    self._abort_if_unique_id_configured()
+                    
+                    return self.async_create_entry(
+                        title=f"{vehicle.name}",
+                        data={
+                            CONF_USERNAME: self._username,
+                            CONF_PASSWORD: self._password,
+                            CONF_VEHICLE: vehicle.vehicle_id,
+                        },
+                        options={
+                            CONF_UNIT_SYSTEM: DEFAULT_UNIT_SYSTEM,
+                            CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL,
+                        },
+                    )
+                
+                # Multiple vehicles, show selection step
+                return await self.async_step_vehicle()
+                
+            except ValueError as err:
+                if str(err) == ERROR_AUTH:
+                    errors["base"] = ERROR_AUTH
+                elif str(err) == ERROR_CANNOT_CONNECT:
+                    errors["base"] = ERROR_CANNOT_CONNECT
+                else:
+                    errors["base"] = ERROR_UNKNOWN
+                    _LOGGER.exception("Unexpected exception: %s", err)
             except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception during authentication")
-                errors["base"] = "unknown"
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = ERROR_UNKNOWN
 
-        # Show form
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_USERNAME): str,
-                    vol.Required(CONF_PASSWORD): str,
-                    vol.Required(CONF_UNIT, default=DEFAULT_UNIT): vol.In(CONF_UNITS),
-                    vol.Required(
-                        CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
-                    ): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
-                    vol.Required(
-                        CONF_OVERRIDE_LOCK_STATE_CHECK,
-                        default=DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
-                    ): bool,
-                }
-            ),
-            errors=errors,
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
         )
 
-    async def async_step_select_vehicle(
+        return self.async_show_form(
+            step_id="user", data_schema=data_schema, errors=errors
+        )
+
+    async def async_step_vehicle(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle vehicle selection step."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
-            vehicle_id = user_input[CONF_VEHICLE_ID]
-            vehicle_name = self._vehicles[vehicle_id]
-
-            # Set unique ID and check if already configured
-            await self.async_set_unique_id(f"{DOMAIN}_{vehicle_id}")
+            vehicle_id = user_input[CONF_VEHICLE]
+            
+            # Find the selected vehicle
+            vehicle = next(
+                (v for v in self._vehicles if v.vehicle_id == vehicle_id), 
+                None
+            )
+            
+            if vehicle is None:
+                return self.async_abort(reason="vehicle_not_found")
+            
+            # Check if already configured
+            await self.async_set_unique_id(vehicle.vehicle_id)
             self._abort_if_unique_id_configured()
-
-            # Create entry
+            
             return self.async_create_entry(
-                title=vehicle_name,
+                title=f"{vehicle.name}",
                 data={
                     CONF_USERNAME: self._username,
                     CONF_PASSWORD: self._password,
-                    CONF_VEHICLE_ID: vehicle_id,
+                    CONF_VEHICLE: vehicle.vehicle_id,
                 },
                 options={
-                    CONF_UNIT: self._unit,
-                    CONF_UPDATE_INTERVAL: self._update_interval,
-                    CONF_OVERRIDE_LOCK_STATE_CHECK: self._override_lock_state_check,
+                    CONF_UNIT_SYSTEM: DEFAULT_UNIT_SYSTEM,
+                    CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL,
                 },
             )
-
-        # Get list of vehicles
-        try:
-            self._vehicles = await self._async_get_vehicles(
-                self._username, self._password
-            )
-
-            # Filter out already configured vehicles
-            configured_vehicles = {
-                entry.data[CONF_VEHICLE_ID]
-                for entry in self._async_current_entries()
+        
+        # Build vehicle choices
+        vehicle_choices = {
+            vehicle.vehicle_id: f"{vehicle.name} ({vehicle.info.make} {vehicle.info.model})"
+            for vehicle in self._vehicles
+        }
+        
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_VEHICLE): vol.In(vehicle_choices),
             }
-            available_vehicles = {
-                vid: name
-                for vid, name in self._vehicles.items()
-                if vid not in configured_vehicles
-            }
-
-            if not available_vehicles:
-                return self.async_abort(reason="no_vehicles_available")
-
-            self._vehicles = available_vehicles
-
-        except DroneMobileException:
-            errors["base"] = "cannot_connect"
-            return self.async_show_form(
-                step_id="select_vehicle",
-                errors=errors,
-            )
-
-        # Show vehicle selection form
+        )
+        
         return self.async_show_form(
-            step_id="select_vehicle",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_VEHICLE_ID): vol.In(self._vehicles)}
-            ),
-            errors=errors,
+            step_id="vehicle",
+            data_schema=data_schema,
+            description_placeholders={
+                "num_vehicles": str(len(self._vehicles)),
+            },
         )
 
-    async def _async_validate_credentials(
-        self, username: str, password: str
-    ) -> None:
-        """Validate the user credentials."""
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        """Handle reauthorization request."""
+        return await self.async_step_reauth_confirm()
 
-        def _validate() -> bool:
-            """Validate credentials synchronously."""
-            client = DroneMobileClient(username, password)
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reauthorization confirmation."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+            assert entry is not None
+
+            data = {**entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]}
+
             try:
-                # Try to get vehicles to validate credentials
-                vehicles = client.get_vehicles()
-                return len(vehicles) >= 0
-            finally:
-                client.close()
+                await validate_input(self.hass, data)
+            except ValueError as err:
+                if str(err) == ERROR_AUTH:
+                    errors["base"] = ERROR_AUTH
+                else:
+                    errors["base"] = ERROR_CANNOT_CONNECT
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = ERROR_UNKNOWN
+            else:
+                self.hass.config_entries.async_update_entry(entry, data=data)
+                await self.hass.config_entries.async_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
 
-        await self.hass.async_add_executor_job(_validate)
-
-    async def _async_get_vehicles(
-        self, username: str, password: str
-    ) -> dict[str, str]:
-        """Get list of vehicles from DroneMobile."""
-
-        def _get_vehicles() -> dict[str, str]:
-            """Get vehicles synchronously."""
-            client = DroneMobileClient(username, password)
-            try:
-                vehicles = client.get_vehicles()
-                return {vehicle.vehicle_id: vehicle.name for vehicle in vehicles}
-            finally:
-                client.close()
-
-        return await self.hass.async_add_executor_job(_get_vehicles)
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_PASSWORD): str}),
+            errors=errors,
+        )
 
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> DroneMobileOptionsFlow:
+    ) -> DroneMobileOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return DroneMobileOptionsFlow(config_entry)
+        return DroneMobileOptionsFlowHandler(config_entry)
 
 
-class DroneMobileOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for DroneMobile."""
+class DroneMobileOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle DroneMobile options."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
@@ -221,23 +252,21 @@ class DroneMobileOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        CONF_UNIT,
-                        default=self.config_entry.options.get(CONF_UNIT, DEFAULT_UNIT),
-                    ): vol.In(CONF_UNITS),
-                    vol.Optional(
+                    vol.Required(
+                        CONF_UNIT_SYSTEM,
+                        default=self.config_entry.options.get(
+                            CONF_UNIT_SYSTEM, DEFAULT_UNIT_SYSTEM
+                        ),
+                    ): vol.In([UNIT_SYSTEM_IMPERIAL, UNIT_SYSTEM_METRIC]),
+                    vol.Required(
                         CONF_UPDATE_INTERVAL,
                         default=self.config_entry.options.get(
                             CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
                         ),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
-                    vol.Optional(
-                        CONF_OVERRIDE_LOCK_STATE_CHECK,
-                        default=self.config_entry.options.get(
-                            CONF_OVERRIDE_LOCK_STATE_CHECK,
-                            DEFAULT_OVERRIDE_LOCK_STATE_CHECK,
-                        ),
-                    ): bool,
+                    ): vol.All(
+                        cv.positive_int,
+                        vol.Range(min=MIN_UPDATE_INTERVAL, max=MAX_UPDATE_INTERVAL),
+                    ),
                 }
             ),
         )
