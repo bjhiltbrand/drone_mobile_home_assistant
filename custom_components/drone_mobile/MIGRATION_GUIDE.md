@@ -1,12 +1,12 @@
 # Migration Guide: DroneMobile Home Assistant Integration v1.0.0
 
-This guide covers the migration from the old integration (using drone_mobile 0.2.30) to the new version (using drone_mobile 0.3.0).
+This guide covers the migration from the old integration (using drone_mobile 0.2.30) to the new version (using drone_mobile 0.3.2).
 
 ## What Changed
 
 ### Major Updates
 
-1. **Updated to drone_mobile 0.3.0** - The underlying Python package has been completely refactored with:
+1. **Updated to drone_mobile 0.3.2** - The underlying Python package has been completely refactored with:
    - Modern type hints
    - Better error handling
    - Improved authentication
