@@ -36,5 +36,7 @@ LOCK_TRUNK: Final = "trunk"
 # Switches
 SWITCH_REMOTE_START: Final = "remote_start"
 SWITCH_PANIC: Final = "panic"
-SWITCH_AUX1: Final = "aux1"
-SWITCH_AUX2: Final = "aux2"
+
+# Buttons
+BUTTON_AUX1: Final = "aux1"
+BUTTON_AUX2: Final = "aux2"

@@ -1,41 +1,44 @@
 # DroneMobile Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
 
-A Home Assistant custom integration for DroneMobile-connected vehicles (Firstech/Compustar remote start systems).
+Home Assistant integration for DroneMobile connected vehicles (Firstech/Compustar remote start systems).
 
-## ⚠️ Important Notice - Version 1.0.0 Update
+## ⚠️ Disclaimer
 
-**This version introduces breaking changes!** The integration has been completely rewritten to use the new `drone_mobile` v0.3.0 library.
+This integration uses an **unofficial API** from [DroneMobile](https://www.dronemobile.com/) that is subject to change without notice. The authors claim no responsibility for any damages to your vehicle resulting from the use of this integration.
 
-### What's New
-- ✨ **Modern Python Package**: Uses the official `drone_mobile` v0.3.0 from PyPI
-- 🔒 **Better Security**: Improved token management and secure storage
-- 🎯 **Type Safety**: Full type hints for better reliability
-- 🐛 **Improved Error Handling**: Better error messages and recovery
-- 🚀 **Performance**: More efficient API calls and caching
-- 📝 **Better Logging**: Improved debugging capabilities
+## Features
 
-### Migration from v0.0.10
-If you're upgrading from version 0.0.10 or earlier:
+### Sensors
+- 🛣️ **Odometer** - Current mileage
+- 🔋 **Battery** - Voltage and percentage
+- 🌡️ **Temperature** - Interior and exterior temperatures
+- 📍 **GPS** - Current location coordinates
+- 🚨 **Alarm Status** - Armed/Disarmed
+- 🔑 **Ignition Status** - On/Off
+- 🏃 **Engine Status** - Running/Off
+- 🚪 **Door Status** - Open/Closed
+- 🎒 **Trunk Status** - Open/Closed
+- 🚗 **Hood Status** - Open/Closed
+- 🕐 **Last Refresh** - Timestamp of last update
 
-1. **Backup your configuration** before upgrading
-2. **Remove the integration** from Home Assistant (Settings → Devices & Services)
-3. **Install the new version** (see Installation below)
-4. **Re-add the integration** with your credentials
-5. Your vehicles will be discovered automatically
+### Controls
+- 🔒 **Door Lock** - Lock/Unlock doors
+- 🎒 **Trunk** - Open trunk
+- 🏁 **Remote Start** - Start/Stop engine
+- 🚨 **Panic Alarm** - Activate/Deactivate panic
+- 🔧 **Auxiliary 1 & 2** - Trigger auxiliary functions
 
-The new version will automatically migrate your authentication tokens. No manual token management is needed anymore!
-
-## Disclaimer
-
-The code here is based off of an unsupported API from [DroneMobile](https://www.dronemobile.com/) and is subject to change without notice. The authors claim no responsibility for damages to your vehicle by use of the code within.
+### Device Tracker
+- 📍 **GPS Tracker** - Real-time location tracking
 
 ## Requirements
 
-- Home Assistant 2022.7 or newer
-- DroneMobile account with active subscription
-- Vehicle with installed DroneMobile system (Firstech, Compustar, etc.)
+- Home Assistant 2023.1 or newer
+- DroneMobile subscription and compatible vehicle system
+- Account credentials for DroneMobile
 
 ## Installation
 
@@ -48,183 +51,229 @@ The code here is based off of an unsupported API from [DroneMobile](https://www.
 5. Add this repository URL: `https://github.com/bjhiltbrand/drone_mobile_home_assistant`
 6. Select category: "Integration"
 7. Click "Add"
-8. Find "DroneMobile" in the integration list and click "Download"
+8. Find "DroneMobile" in the list and click "Install"
 9. Restart Home Assistant
 
 ### Manual Installation
 
-1. Download the `custom_components/drone_mobile` folder from this repository
-2. Copy it to your Home Assistant's `custom_components` directory
-3. If the `custom_components` directory doesn't exist, create it in your config folder
-4. Restart Home Assistant
+1. Download the latest release from GitHub
+2. Copy the `custom_components/drone_mobile` folder to your Home Assistant `custom_components` directory
+3. Restart Home Assistant
 
 ## Configuration
 
-### Initial Setup
+### Setup via UI
 
 1. Go to **Settings** → **Devices & Services**
 2. Click **Add Integration**
-3. Search for "**DroneMobile**"
+3. Search for **DroneMobile**
 4. Enter your credentials:
-   - **Username**: Your DroneMobile email address
-   - **Password**: Your DroneMobile password
-   - **Units**: Imperial (MPH, miles, °F) or Metric (km/h, km, °C)
-   - **Update Interval**: How often to poll for updates (2-60 minutes, default: 5)
-   - **Override Lock State Check**: Send lock commands regardless of current state (default: off)
-5. Click **Submit**
-6. Select your vehicle from the list
-7. Click **Submit** to complete setup
+   - **Username** - Your DroneMobile email address
+   - **Password** - Your DroneMobile password
+   - **Units** - Imperial (miles/°F) or Metric (km/°C)
+   - **Update Interval** - How often to poll for updates (2-60 minutes)
+   - **Override Lock State Check** - Send lock commands regardless of current state
+5. Select your vehicle from the list
+6. Click **Submit**
 
-### Configuration Options
+### Multiple Vehicles
 
-After setup, you can modify settings:
+To add multiple vehicles:
+1. Complete the setup process for your first vehicle
+2. Repeat the setup process
+3. Select a different vehicle from the list
 
-1. Go to **Settings** → **Devices & Services**
-2. Find **DroneMobile** and click **Configure**
-3. Adjust your preferences:
-   - **Units**: Switch between Imperial and Metric
-   - **Update Interval**: Change polling frequency
-   - **Override Lock State Check**: Enable/disable state checking
+Each vehicle will be added as a separate integration instance with its own entities.
 
-## Features
+## Usage
 
-### Status Sensors
+### Entity Naming
 
-The integration provides the following sensors:
+All entities follow the pattern: `{domain}.{vehicle_name}_{entity_name}`
 
-- **Odometer** - Vehicle mileage (converts to km in Metric mode)
-- **Battery** - Main battery voltage
-- **Temperature** - Interior temperature (converts to °F in Imperial mode)
-- **Alarm Status** - Armed or Disarmed
-- **Ignition Status** - On or Off
-- **Engine Status** - Running or Off
-- **Door Status** - Open or Closed
-- **Trunk Status** - Open or Closed
-- **Hood Status** - Open or Closed
-- **Last Refresh** - Timestamp of last update
-- **GPS Location** - Last known coordinates (if available)
-
-### Controls
-
-- **Lock/Unlock** - Control door locks (also arms/disarms alarm)
-- **Remote Start/Stop** - Start or stop the engine remotely
-- **Trunk** - Open the trunk
-- **Panic Alarm** - Activate/deactivate panic alarm
-- **Auxiliary Controls** - Trigger Aux1 and Aux2 functions
-
-### Device Tracker
-
-If your vehicle supports GPS, a device tracker entity is automatically created showing the vehicle's location on the map.
+Example for a vehicle named "My Car":
+- `sensor.my_car_odometer`
+- `lock.my_car_door_lock`
+- `switch.my_car_remote_start`
+- `device_tracker.my_car_location`
 
 ### Services
 
 #### Refresh Device Status
-Manually poll the vehicle for the latest status. Use sparingly as it consumes vehicle battery and data.
+
+Manually poll the vehicle for the latest status. Use sparingly as it consumes cellular data and vehicle battery.
 
 ```yaml
-service: drone_mobile.refresh_device_status_YOUR_VEHICLE_NAME
+service: drone_mobile.refresh_device_status_{vehicle_name}
 ```
 
-#### Dump Device Data
-Export vehicle data to a JSON file in your Home Assistant config directory for debugging.
+Replace `{vehicle_name}` with your vehicle name (spaces replaced with underscores, lowercase).
 
+Example:
 ```yaml
-service: drone_mobile.dump_device_data_YOUR_VEHICLE_NAME
+service: drone_mobile.refresh_device_status_my_car
 ```
 
-**Note**: Service names use your vehicle name with spaces replaced by underscores.
+### Example Automations
 
-## Usage Examples
-
-### Automation - Start car when leaving work
+#### Auto-Start When Cold
 
 ```yaml
 automation:
-  - alias: "Start car when leaving work"
-    trigger:
-      - platform: zone
-        entity_id: person.your_name
-        zone: zone.work
-        event: leave
-    condition:
-      - condition: numeric_state
-        entity_id: sensor.your_vehicle_temperature
-        below: 50
-    action:
-      - service: switch.turn_on
-        target:
-          entity_id: switch.your_vehicle_remotestart_switch
-```
-
-### Automation - Lock car at night
-
-```yaml
-automation:
-  - alias: "Lock car at night"
+  - alias: "Start car when cold in the morning"
     trigger:
       - platform: time
-        at: "23:00:00"
+        at: "07:00:00"
     condition:
+      - condition: numeric_state
+        entity_id: sensor.my_car_temperature
+        below: 40
       - condition: state
-        entity_id: lock.your_vehicle_doorlock
-        state: "unlocked"
+        entity_id: switch.my_car_remote_start
+        state: 'off'
     action:
-      - service: lock.lock
-        target:
-          entity_id: lock.your_vehicle_doorlock
-```
-
-### Script - Remote start with climate control
-
-```yaml
-script:
-  warm_up_car:
-    alias: "Warm up car"
-    sequence:
       - service: switch.turn_on
         target:
-          entity_id: switch.your_vehicle_remotestart_switch
-      - delay:
-          minutes: 10
-      - service: switch.turn_off
-        target:
-          entity_id: switch.your_vehicle_remotestart_switch
+          entity_id: switch.my_car_remote_start
+      - service: notify.mobile_app
+        data:
+          message: "Car started automatically - it's {{ states('sensor.my_car_temperature') }}°F outside"
 ```
+
+#### Lock Reminder
+
+```yaml
+automation:
+  - alias: "Notify if car left unlocked at night"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+    condition:
+      - condition: state
+        entity_id: lock.my_car_door_lock
+        state: 'unlocked'
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "⚠️ Your car is unlocked!"
+          data:
+            actions:
+              - action: "LOCK_CAR"
+                title: "Lock Now"
+      - wait_for_trigger:
+          - platform: event
+            event_type: mobile_app_notification_action
+            event_data:
+              action: "LOCK_CAR"
+        timeout: "00:05:00"
+      - service: lock.lock
+        target:
+          entity_id: lock.my_car_door_lock
+```
+
+#### Low Battery Alert
+
+```yaml
+automation:
+  - alias: "Alert on low car battery"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.my_car_battery
+        below: 12.0
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "⚠️ Car battery is low: {{ states('sensor.my_car_battery') }}V"
+```
+
+#### Location-Based Actions
+
+```yaml
+automation:
+  - alias: "Start car when arriving at work"
+    trigger:
+      - platform: zone
+        entity_id: device_tracker.my_phone
+        zone: zone.work
+        event: enter
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.my_car_temperature
+        below: 50
+      - condition: state
+        entity_id: switch.my_car_remote_start
+        state: 'off'
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.my_car_remote_start
+```
+
+### Lovelace Cards
+
+#### Simple Vehicle Status Card
+
+```yaml
+type: entities
+title: My Car
+entities:
+  - entity: sensor.my_car_engine
+    name: Engine
+  - entity: lock.my_car_door_lock
+    name: Doors
+  - entity: sensor.my_car_battery
+    name: Battery
+  - entity: sensor.my_car_temperature
+    name: Temperature
+  - entity: sensor.my_car_odometer
+    name: Odometer
+```
+
+#### Control Card
+
+```yaml
+type: glance
+title: Car Controls
+entities:
+  - entity: switch.my_car_remote_start
+    name: Start/Stop
+  - entity: lock.my_car_door_lock
+    name: Lock/Unlock
+  - entity: lock.my_car_trunk
+    name: Trunk
+  - entity: switch.my_car_panic
+    name: Panic
+```
+
+#### Map Card
+
+```yaml
+type: map
+entities:
+  - device_tracker.my_car_location
+default_zoom: 15
+```
+
+## Configuration Options
+
+### Units
+- **Imperial** - Miles, MPH, °F (default)
+- **Metric** - Kilometers, KPH, °C
+
+### Update Interval
+- Range: 2-60 minutes
+- Default: 5 minutes
+- Note: More frequent updates consume more cellular data and vehicle battery
+
+### Override Lock State Check
+- **Disabled** (default) - Only send lock/unlock commands if state differs
+- **Enabled** - Always send commands regardless of current state
 
 ## Troubleshooting
 
-### Authentication Issues
+### Enable Debug Logging
 
-If you experience authentication problems:
-
-1. Verify your credentials are correct
-2. Check that your DroneMobile subscription is active
-3. Try logging into the DroneMobile app to ensure your account is working
-4. Remove and re-add the integration
-5. Check Home Assistant logs for specific error messages
-
-### Entity Not Updating
-
-If sensors aren't updating:
-
-1. Check your update interval isn't too long
-2. Verify your vehicle has cellular connectivity
-3. Try manually refreshing using the service call
-4. Check Home Assistant logs for API errors
-
-### Commands Not Working
-
-If remote commands fail:
-
-1. Ensure your vehicle is within cellular range
-2. Check that your DroneMobile subscription allows remote commands
-3. Verify the command works in the DroneMobile mobile app
-4. Check Home Assistant logs for error details
-5. Try enabling "Override Lock State Check" in configuration
-
-### Getting Debug Logs
-
-To enable detailed logging:
+Add to your `configuration.yaml`:
 
 ```yaml
 logger:
@@ -234,25 +283,44 @@ logger:
     drone_mobile: debug
 ```
 
-Then check your Home Assistant logs at **Settings** → **System** → **Logs**.
+### Common Issues
 
-## Known Limitations
+#### "Unable to connect"
+- Verify your DroneMobile credentials
+- Check that your DroneMobile subscription is active
+- Ensure you can log in to the DroneMobile app
 
-1. **Polling Only**: The integration polls for updates at the configured interval. Real-time push notifications are not supported by the DroneMobile API.
+#### Entities show "Unavailable"
+- Check Home Assistant logs for errors
+- Try removing and re-adding the integration
+- Verify your internet connection
 
-2. **Rate Limiting**: Excessive API calls may result in rate limiting. Keep update intervals reasonable (5+ minutes recommended).
+#### GPS not showing
+- Ensure your vehicle hardware supports GPS
+- GPS entities only appear if your system reports location data
 
-3. **Battery Drain**: Frequent status polls and commands can drain your vehicle's battery. Use the manual refresh service sparingly.
+#### Commands not working
+- Some commands may not be supported by your vehicle hardware
+- Check that your vehicle is within cellular range
+- Wait a few moments and try again
 
-4. **Limited Status Data**: Some vehicle status details (door/trunk/hood) may not be available depending on your DroneMobile hardware.
+### Getting Help
 
-5. **GPS Accuracy**: GPS location may not be available for all vehicles or hardware configurations.
+1. Check the [GitHub Issues](https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues)
+2. Enable debug logging (see above)
+3. Review Home Assistant logs: Settings → System → Logs
+4. Open a new issue with:
+   - Your Home Assistant version
+   - Integration version
+   - Relevant log entries
+   - Description of the problem
 
-## Support
+## Privacy & Security
 
-- **Issues**: [GitHub Issues](https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues)
-- **Feature Requests**: [GitHub Issues](https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues)
-- **Home Assistant Community**: [Community Forum](https://community.home-assistant.io/)
+- Your DroneMobile credentials are stored securely in Home Assistant's configuration
+- Authentication tokens are cached locally to minimize API calls
+- No data is sent to third parties
+- All communication is with DroneMobile's official API
 
 ## Contributing
 
@@ -266,14 +334,13 @@ Contributions are welcome! Please:
 
 ## Credits
 
-- Original integration by [@bjhiltbrand](https://github.com/bjhiltbrand)
-- Based on the [drone_mobile Python library](https://github.com/bjhiltbrand/drone_mobile_python)
-- Thanks to all contributors and users!
+- Original integration: [@bjhiltbrand](https://github.com/bjhiltbrand)
+- Python package: [drone_mobile](https://github.com/bjhiltbrand/drone_mobile_python)
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Legal
+## Disclaimer
 
-This is an unofficial integration and is not affiliated with, endorsed by, or connected to DroneMobile, Firstech, or Compustar in any way.
+This integration is not affiliated with, endorsed by, or connected to DroneMobile, Firstech, or Compustar in any way. Use at your own risk.

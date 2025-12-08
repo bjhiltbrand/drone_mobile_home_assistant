@@ -6,12 +6,3 @@ refresh_device_status:
     The service name includes your vehicle name with spaces replaced by underscores:
     drone_mobile.refresh_device_status_VEHICLE_NAME
   fields: {}
-
-dump_device_data:
-  name: Dump Device Data
-  description: >
-    Export the currently cached vehicle data to a JSON file in your Home Assistant
-    config directory. Useful for debugging and support requests.
-    The service name includes your vehicle name with spaces replaced by underscores:
-    drone_mobile.dump_device_data_VEHICLE_NAME
-  fields: {}

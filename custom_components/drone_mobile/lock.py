@@ -1,153 +1,131 @@
-"""Support for DroneMobile locks."""
+"""Lock platform for DroneMobile integration."""
 import logging
 
 from drone_mobile.exceptions import CommandFailedError, DroneMobileException
 
 from homeassistant.components.lock import LockEntity, LockEntityFeature
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DroneMobileEntity
-from .const import DOMAIN, LOCKS
+from .const import CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Lock Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
-    entities = []
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up DroneMobile lock entities."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    override_lock_check = config_entry.options.get(
+        CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
+    )
 
-    for key, value in LOCKS.items():
-        entities.append(Lock(entry, key))
+    entities = [
+        DroneMobileDoorLock(coordinator, override_lock_check),
+        DroneMobileTrunk(coordinator, override_lock_check),
+    ]
 
     async_add_entities(entities, True)
 
 
-class Lock(DroneMobileEntity, LockEntity):
-    """Representation of a DroneMobile lock."""
+class DroneMobileDoorLock(DroneMobileEntity, LockEntity):
+    """Representation of a DroneMobile door lock."""
 
-    def __init__(self, coordinator, lock: str):
+    def __init__(self, coordinator, override_lock_check: bool) -> None:
         """Initialize the lock."""
         super().__init__(
-            device_id=f"dronemobile_{lock}",
-            name=f"{coordinator.data['vehicle_name']}_{lock}",
             coordinator=coordinator,
+            device_id="door_lock",
+            name=f"{coordinator.vehicle.name} Door Lock",
         )
-        self._lock = lock
-        self._state = self.is_locked
-
-    async def async_lock(self, **kwargs):
-        """Lock the vehicle device."""
-        if self.is_locked and not self.coordinator._override_lock_state_check:
-            _LOGGER.debug("Vehicle already locked, skipping command")
-            return
-
-        _LOGGER.debug("Locking %s", self.coordinator.data["vehicle_name"])
-
-        try:
-            if self._lock == "doorLock":
-                response = await self.coordinator.hass.async_add_executor_job(
-                    self.coordinator.vehicle.lock
-                )
-                _LOGGER.info("Lock command result: %s", response.message)
-            else:
-                _LOGGER.warning("Unknown lock type: %s", self._lock)
-                return
-
-            # Refresh coordinator data
-            await self.coordinator.async_refresh()
-            self._state = self.is_locked
-            self.async_write_ha_state()
-
-        except CommandFailedError as err:
-            _LOGGER.error("Failed to lock %s: %s", self.coordinator.data["vehicle_name"], err)
-        except DroneMobileException as err:
-            _LOGGER.error("Error locking %s: %s", self.coordinator.data["vehicle_name"], err)
-
-    async def async_unlock(self, **kwargs):
-        """Unlock the vehicle device."""
-        if not self.is_locked and not self.coordinator._override_lock_state_check:
-            _LOGGER.debug("Vehicle already unlocked, skipping command")
-            return
-
-        _LOGGER.debug("Unlocking %s", self.coordinator.data["vehicle_name"])
-
-        try:
-            if self._lock == "doorLock":
-                response = await self.coordinator.hass.async_add_executor_job(
-                    self.coordinator.vehicle.unlock
-                )
-                _LOGGER.info("Unlock command result: %s", response.message)
-            elif self._lock == "trunk":
-                response = await self.coordinator.hass.async_add_executor_job(
-                    self.coordinator.vehicle.trunk
-                )
-                _LOGGER.info("Trunk command result: %s", response.message)
-            else:
-                _LOGGER.warning("Unknown lock type: %s", self._lock)
-                return
-
-            # Refresh coordinator data
-            await self.coordinator.async_refresh()
-            self._state = self.is_locked
-            self.async_write_ha_state()
-
-        except CommandFailedError as err:
-            _LOGGER.error("Failed to unlock %s: %s", self.coordinator.data["vehicle_name"], err)
-        except DroneMobileException as err:
-            _LOGGER.error("Error unlocking %s: %s", self.coordinator.data["vehicle_name"], err)
-
-    async def async_open(self, **kwargs):
-        """Open the trunk."""
-        if self._lock != "trunk":
-            _LOGGER.warning("Open only supported for trunk")
-            return
-
-        _LOGGER.debug("Opening trunk for %s", self.coordinator.data["vehicle_name"])
-
-        try:
-            response = await self.coordinator.hass.async_add_executor_job(
-                self.coordinator.vehicle.trunk
-            )
-            _LOGGER.info("Trunk command result: %s", response.message)
-
-            # Refresh coordinator data
-            await self.coordinator.async_refresh()
-            self._state = self.is_locked
-            self.async_write_ha_state()
-
-        except CommandFailedError as err:
-            _LOGGER.error("Failed to open trunk for %s: %s", 
-                         self.coordinator.data["vehicle_name"], err)
-        except DroneMobileException as err:
-            _LOGGER.error("Error opening trunk for %s: %s", 
-                         self.coordinator.data["vehicle_name"], err)
+        self._override_lock_check = override_lock_check
+        self._attr_icon = "mdi:car-door-lock"
 
     @property
     def is_locked(self) -> bool | None:
-        """Determine if the lock is locked."""
-        status = self.coordinator.data.get("_status")
-        
-        if not status:
-            return None
+        """Return true if lock is locked."""
+        status = self.coordinator.data["status"]
+        return status.is_locked
 
-        if self._lock == "doorLock":
-            return status.is_locked
-        elif self._lock == "trunk":
-            # Trunk locked status not directly available in new API
-            # We assume locked by default for safety
-            return True
-        else:
-            _LOGGER.error("Unknown lock type: %s", self._lock)
-            return None
+    async def async_lock(self, **kwargs) -> None:
+        """Lock the doors."""
+        if self.is_locked and not self._override_lock_check:
+            _LOGGER.debug("Doors already locked, skipping command")
+            return
+
+        _LOGGER.debug("Locking %s", self.coordinator.vehicle.name)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.lock)
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to lock doors: %s", err)
+        except DroneMobileException as err:
+            _LOGGER.error("Error locking doors: %s", err)
+
+    async def async_unlock(self, **kwargs) -> None:
+        """Unlock the doors."""
+        if not self.is_locked and not self._override_lock_check:
+            _LOGGER.debug("Doors already unlocked, skipping command")
+            return
+
+        _LOGGER.debug("Unlocking %s", self.coordinator.vehicle.name)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.unlock)
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to unlock doors: %s", err)
+        except DroneMobileException as err:
+            _LOGGER.error("Error unlocking doors: %s", err)
+
+
+class DroneMobileTrunk(DroneMobileEntity, LockEntity):
+    """Representation of a DroneMobile trunk."""
+
+    _attr_supported_features = LockEntityFeature.OPEN
+
+    def __init__(self, coordinator, override_lock_check: bool) -> None:
+        """Initialize the trunk."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="trunk",
+            name=f"{coordinator.vehicle.name} Trunk",
+        )
+        self._override_lock_check = override_lock_check
+        self._attr_icon = "mdi:car-back"
 
     @property
-    def supported_features(self) -> int:
-        """Flag supported features."""
-        if self._lock == "trunk":
-            return LockEntityFeature.OPEN
-        return 0
+    def is_locked(self) -> bool | None:
+        """Return true if trunk is closed."""
+        # Note: The trunk state is inverted - trunk_open means unlocked
+        status = self.coordinator.data["status"]
+        # Access nested structure: raw_data.last_known_state.controller.trunk_open
+        if "last_known_state" in status.raw_data:
+            controller = status.raw_data["last_known_state"].get("controller", {})
+            trunk_open = controller.get("trunk_open")
+            if trunk_open is not None:
+                return not trunk_open
+        return None
 
-    @property
-    def icon(self) -> str:
-        """Return the icon."""
-        return LOCKS[self._lock]["icon"]
+    async def async_unlock(self, **kwargs) -> None:
+        """Open the trunk."""
+        _LOGGER.debug("Opening trunk for %s", self.coordinator.vehicle.name)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.trunk)
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to open trunk: %s", err)
+        except DroneMobileException as err:
+            _LOGGER.error("Error opening trunk: %s", err)
+
+    async def async_open(self, **kwargs) -> None:
+        """Open the trunk."""
+        await self.async_unlock(**kwargs)
+
+    async def async_lock(self, **kwargs) -> None:
+        """Lock is not supported for trunk."""
+        _LOGGER.warning("Trunk cannot be locked remotely")

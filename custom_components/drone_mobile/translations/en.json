@@ -115,10 +115,6 @@
     "refresh_device_status": {
       "name": "Refresh device status",
       "description": "Poll the vehicle for latest status. Use sparingly as it consumes data and vehicle battery."
-    },
-    "dump_device_data": {
-      "name": "Dump device data",
-      "description": "Export all cached vehicle data to a JSON file in your config directory."
     }
   }
 }

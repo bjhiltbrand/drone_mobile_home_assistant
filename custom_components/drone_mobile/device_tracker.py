@@ -1,8 +1,10 @@
-"""Support for DroneMobile device tracking."""
+"""Device tracker platform for DroneMobile integration."""
 import logging
 
-from homeassistant.components.device_tracker import SourceType
-from homeassistant.components.device_tracker.config_entry import TrackerEntity
+from homeassistant.components.device_tracker import SourceType, TrackerEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DroneMobileEntity
 from .const import DOMAIN
@@ -10,46 +12,48 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
-    
-    # Check if vehicle has location data
-    status = entry.data.get("_status")
-    if status and status.location:
-        async_add_entities([CarTracker(entry, "gps")], True)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up DroneMobile device tracker."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    # Only add tracker if location is available
+    status = coordinator.data["status"]
+    if status.location is not None:
+        async_add_entities([DroneMobileDeviceTracker(coordinator)], True)
     else:
         _LOGGER.debug("Vehicle does not support GPS tracking")
 
 
-class CarTracker(DroneMobileEntity, TrackerEntity):
+class DroneMobileDeviceTracker(DroneMobileEntity, TrackerEntity):
     """Representation of a DroneMobile device tracker."""
 
-    def __init__(self, coordinator, sensor: str):
-        """Initialize the tracker."""
+    _attr_icon = "mdi:car"
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the device tracker."""
         super().__init__(
-            device_id="dronemobile_tracker",
-            name="dronemobile_tracker",
             coordinator=coordinator,
+            device_id="gps_tracker",
+            name=f"{coordinator.vehicle.name} Location",
         )
-        self._attr = {}
-        self.sensor = sensor
-        # Required for HA 2022.7
-        self.coordinator_context = object()
 
     @property
     def latitude(self) -> float | None:
         """Return latitude value of the device."""
-        status = self.coordinator.data.get("_status")
-        if status and status.location:
+        status = self.coordinator.data["status"]
+        if status.location:
             return status.location.latitude
         return None
 
     @property
     def longitude(self) -> float | None:
         """Return longitude value of the device."""
-        status = self.coordinator.data.get("_status")
-        if status and status.location:
+        status = self.coordinator.data["status"]
+        if status.location:
             return status.location.longitude
         return None
 
@@ -59,34 +63,15 @@ class CarTracker(DroneMobileEntity, TrackerEntity):
         return SourceType.GPS
 
     @property
-    def location_accuracy(self) -> int:
-        """Return the location accuracy."""
-        status = self.coordinator.data.get("_status")
-        if status and status.location and status.location.accuracy:
-            return int(status.location.accuracy)
-        return 0
-
-    @property
-    def extra_state_attributes(self) -> dict | None:
-        """Return device state attributes."""
-        status = self.coordinator.data.get("_status")
-        if not status or not status.location:
-            return None
-
-        attrs = {
-            "latitude": status.location.latitude,
-            "longitude": status.location.longitude,
-        }
-
-        if status.location.accuracy:
-            attrs["accuracy"] = status.location.accuracy
-
-        if status.location.timestamp:
-            attrs["last_updated"] = status.location.timestamp
-
+    def extra_state_attributes(self) -> dict:
+        """Return device specific attributes."""
+        status = self.coordinator.data["status"]
+        attrs = {}
+        
+        if status.location:
+            if status.location.accuracy is not None:
+                attrs["gps_accuracy"] = status.location.accuracy
+            if status.location.timestamp:
+                attrs["last_gps_update"] = status.location.timestamp.isoformat()
+        
         return attrs
-
-    @property
-    def icon(self) -> str:
-        """Return the icon."""
-        return "mdi:radar"
