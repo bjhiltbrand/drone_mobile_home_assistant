@@ -42,4 +42,4 @@ jobs:
       - name: ⬆️ Upload zip to release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ github.workspace }}/custom_components/drone_mobile/drone_mobile_home_assistant.zip
+          files: ${{ github.workspace }}/custom_components/drone_mobile/drone_mobile.zip
