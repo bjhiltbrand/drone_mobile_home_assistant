@@ -1,7 +1,18 @@
 # DroneMobile Home Assistant Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
+[hacs]: https://hacs.xyz
+[hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+
+[hainstall]: https://my.home-assistant.io/redirect/config_flow_start/?domain=drone_mobile
+[hainstallbadge]: https://img.shields.io/badge/dynamic/json?style=for-the-badge&logo=home-assistant&logoColor=ccc&label=usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.drone_mobile.total
+
+[ghs]: https://github.com/sponsors/bjhiltbrand
+[ghsbadge]: https://img.shields.io/github/sponsors/bjhiltbrand?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fbjhiltbrand&label=Sponsors
+
+[paypal]: https://paypal.me/bjhiltbrand
+[paypalbadge]: https://img.shields.io/badge/paypal-me-blue.svg?style=for-the-badge&logo=paypal&logoColor=ccc
+
+[![Version](https://img.shields.io/badge/version-2026.4.9-blue.svg)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
 
 Home Assistant integration for DroneMobile connected vehicles (Firstech/Compustar remote start systems).
 
