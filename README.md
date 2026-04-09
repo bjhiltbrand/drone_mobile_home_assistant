@@ -1,17 +1,9 @@
 # DroneMobile Home Assistant Integration
 
-[hacs]: https://hacs.xyz
-[hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
-
-[hainstall]: https://my.home-assistant.io/redirect/config_flow_start/?domain=drone_mobile
-[hainstallbadge]: https://img.shields.io/badge/dynamic/json?style=for-the-badge&logo=home-assistant&logoColor=ccc&label=usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.drone_mobile.total
-
-[ghs]: https://github.com/sponsors/bjhiltbrand
-[ghsbadge]: https://img.shields.io/github/sponsors/bjhiltbrand?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fbjhiltbrand&label=Sponsors
-
-[paypal]: https://paypal.me/bjhiltbrand
-[paypalbadge]: https://img.shields.io/badge/paypal-me-blue.svg?style=for-the-badge&logo=paypal&logoColor=ccc
-
+[![hacs_badge][hacsbadge]][hacs]
+[![hainstall][hainstallbadge]][hainstall]
+[![PayPal][paypalbadge]][paypal]
+[![github][ghsbadge]][ghs]
 [![Version](https://img.shields.io/badge/version-2026.4.9-blue.svg)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
 
 Home Assistant integration for DroneMobile connected vehicles (Firstech/Compustar remote start systems).
@@ -355,3 +347,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Disclaimer
 
 This integration is not affiliated with, endorsed by, or connected to DroneMobile, Firstech, or Compustar in any way. Use at your own risk.
+
+[hacs]: https://hacs.xyz
+[hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+
+[hainstall]: https://my.home-assistant.io/redirect/config_flow_start/?domain=drone_mobile
+[hainstallbadge]: https://img.shields.io/badge/dynamic/json?style=for-the-badge&logo=home-assistant&logoColor=ccc&label=usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.drone_mobile.total
+
+[ghs]: https://github.com/sponsors/bjhiltbrand
+[ghsbadge]: https://img.shields.io/github/sponsors/bjhiltbrand?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fbjhiltbrand&label=Sponsors
+
+[paypal]: https://paypal.me/bjhiltbrand
+[paypalbadge]: https://img.shields.io/badge/paypal-me-blue.svg?style=for-the-badge&logo=paypal&logoColor=ccc
