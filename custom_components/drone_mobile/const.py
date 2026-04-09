@@ -1,55 +1,42 @@
 """Constants for the DroneMobile integration."""
+from typing import Final
 
-DOMAIN = "drone_mobile"
-VEHICLE = "DroneMobile Vehicle"
-MANUFACTURER = "DroneMobile"
+DOMAIN: Final = "drone_mobile"
+MANUFACTURER: Final = "DroneMobile"
 
-CONF_VEHICLE_ID = "vehicle_id"
-CONF_UNIT = "units"
-CONF_UNITS = ["Imperial", "Metric"]
-CONF_UPDATE_INTERVAL = "update_interval"
-CONF_OVERRIDE_LOCK_STATE_CHECK = "override_lock_state_check"
+# Configuration
+CONF_VEHICLE_ID: Final = "vehicle_id"
+CONF_UNIT: Final = "units"
+CONF_UNITS: Final = ["Imperial", "Metric"]
+CONF_UPDATE_INTERVAL: Final = "update_interval"
+CONF_OVERRIDE_LOCK_STATE_CHECK: Final = "override_lock_state_check"
 
-DEFAULT_UNIT = "Imperial"
-DEFAULT_UPDATE_INTERVAL = 5
-DEFAULT_OVERRIDE_LOCK_STATE_CHECK = False
+# Defaults
+DEFAULT_UNIT: Final = "Imperial"
+DEFAULT_UPDATE_INTERVAL: Final = 5  # minutes
+DEFAULT_OVERRIDE_LOCK_STATE_CHECK: Final = False
 
-AVAILABLE_COMMANDS = {
-    "device_status",
-    "start",
-    "stop",
-    "lock",
-    "unlock",
-    "trunk",
-    "panic_on",
-    "panic_off",
-    "aux1",
-    "aux2",
-    "location",
-}
+# Sensors
+SENSOR_ODOMETER: Final = "odometer"
+SENSOR_BATTERY: Final = "battery"
+SENSOR_TEMPERATURE: Final = "temperature"
+SENSOR_GPS: Final = "gps"
+SENSOR_ALARM: Final = "alarm"
+SENSOR_IGNITION_STATUS: Final = "ignition_status"
+SENSOR_ENGINE_STATUS: Final = "engine_status"
+SENSOR_DOOR_STATUS: Final = "door_status"
+SENSOR_TRUNK_STATUS: Final = "trunk_status"
+SENSOR_HOOD_STATUS: Final = "hood_status"
+SENSOR_LAST_REFRESH: Final = "last_refresh"
 
-SENSORS = {
-    "odometer": {"icon": "mdi:counter"},
-    "battery": {"icon": "mdi:car-battery"},
-    "temperature": {"icon": "mdi:thermometer"},
-    "gps": {"icon": "mdi:radar"},
-    "alarm": {"icon": "mdi:bell"},
-    "ignitionStatus": {"icon": "hass:power"},
-    "engineStatus": {"icon": "mdi:engine"},
-    "doorStatus": {"icon": "mdi:car-door"},
-    "trunkStatus": {"icon": "mdi:car-wash"},
-    "hoodStatus": {"icon": "mdi:car-convertible"},
-    "lastRefresh": {"icon": "mdi:clock"},
-}
+# Locks
+LOCK_DOOR: Final = "door_lock"
+LOCK_TRUNK: Final = "trunk"
 
-LOCKS = {
-    "doorLock": {"icon": "mdi:car-door-lock"},
-    "trunk": {"icon": "mdi:car-wash"},
-}
+# Switches
+SWITCH_REMOTE_START: Final = "remote_start"
+SWITCH_PANIC: Final = "panic"
 
-SWITCHES = {
-    "remoteStart": {"icon": "mdi:car-key"},
-    "panic": {"icon": "mdi:access-point"},
-    "aux1": {"icon": "mdi:numeric-1-box-multiple"},
-    "aux2": {"icon": "mdi:numeric-2-box-multiple"},
-}
+# Buttons
+BUTTON_AUX1: Final = "aux1"
+BUTTON_AUX2: Final = "aux2"

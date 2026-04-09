@@ -1,7 +1,8 @@
 """Config flow for DroneMobile integration."""
 import logging
 
-from drone_mobile import Vehicle
+from drone_mobile import DroneMobileClient
+from drone_mobile.exceptions import AuthenticationError, DroneMobileException
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
@@ -30,7 +31,9 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=2, max=60)
         ),
-        vol.Required(CONF_OVERRIDE_LOCK_STATE_CHECK, default=DEFAULT_OVERRIDE_LOCK_STATE_CHECK): bool,
+        vol.Required(
+            CONF_OVERRIDE_LOCK_STATE_CHECK, default=DEFAULT_OVERRIDE_LOCK_STATE_CHECK
+        ): bool,
     }
 )
 
@@ -39,7 +42,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for DroneMobile."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     def __init__(self):
         """Create a new instance of the flow handler."""
@@ -103,16 +105,48 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             existing_vehicles = [
                 entry.data[CONF_VEHICLE_ID] for entry in self._async_current_entries()
             ]
-            vehicles = await get_vehicles(self.hass, user_input)
-            vehicles_options = {
-                vehicle["id"]: vehicle["vehicle_name"]
-                for vehicle in vehicles
-                if vehicle["id"] not in existing_vehicles
-            }
+            vehicles = await get_vehicles(
+                self.hass, self.username, self.password
+            )
+            
+            # Build vehicle options dict
+            vehicles_options = {}
+            for vehicle in vehicles:
+                if vehicle.vehicle_id not in existing_vehicles:
+                    # Use raw_data to get correct field names from API
+                    raw = vehicle.info.raw_data
+                    
+                    _LOGGER.debug(
+                        "Vehicle %s - raw name: %s, raw make: %s, raw model: %s, raw year: %s",
+                        vehicle.vehicle_id,
+                        raw.get("vehicle_name"),
+                        raw.get("vehicle_make"),
+                        raw.get("vehicle_model"),
+                        raw.get("vehicle_year"),
+                    )
+                    
+                    # Build display name from raw API data
+                    parts = []
+                    if raw.get("vehicle_year"):
+                        parts.append(str(raw["vehicle_year"]))
+                    if raw.get("vehicle_make"):
+                        parts.append(raw["vehicle_make"])
+                    if raw.get("vehicle_model"):
+                        parts.append(raw["vehicle_model"])
+                    
+                    if parts:
+                        display_name = " ".join(parts)
+                    elif raw.get("vehicle_name"):
+                        display_name = raw["vehicle_name"]
+                    else:
+                        display_name = f"Vehicle {vehicle.vehicle_id}"
+                    
+                    vehicles_options[vehicle.vehicle_id] = display_name
+            
             if not vehicles_options:
                 return self.async_abort(reason="no_available_vehicles")
-            else:
-                self.vehicles_options = vehicles_options
+            
+            self.vehicles_options = vehicles_options
 
             return self.async_show_form(
                 step_id="select_vehicle",
@@ -148,11 +182,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow."""
+
     def __init__(self, config_entry: config_entries.ConfigEntry):
         """Initialize options flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
+        """Handle options flow."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -168,7 +205,7 @@ class OptionsFlow(config_entries.OptionsFlow):
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
             vol.Optional(
-                CONF_OVERRIDE_LOCK_STATE_CHECK, 
+                CONF_OVERRIDE_LOCK_STATE_CHECK,
                 default=self.config_entry.options.get(
                     CONF_OVERRIDE_LOCK_STATE_CHECK, DEFAULT_OVERRIDE_LOCK_STATE_CHECK
                 ),
@@ -187,35 +224,40 @@ class InvalidAuth(exceptions.HomeAssistantError):
 
 
 async def validate_input(hass: core.HomeAssistant, data):
-    """Validate the user input allows us to connect.
-
-    Data has the keys from DATA_SCHEMA with values provided by the user.
-    """
-    vehicle = Vehicle(data[CONF_USERNAME], data[CONF_PASSWORD])
+    """Validate the user input allows us to connect."""
+    client = DroneMobileClient(data[CONF_USERNAME], data[CONF_PASSWORD])
 
     try:
-        result = await hass.async_add_executor_job(vehicle.auth)
-
-    except Exception as ex:
-        _LOGGER.error(ex)
+        # Try to get vehicles to validate credentials
+        vehicles = await hass.async_add_executor_job(client.get_vehicles)
+        if not vehicles:
+            raise CannotConnect
+    except AuthenticationError as ex:
+        _LOGGER.error("Authentication failed: %s", ex)
         raise InvalidAuth from ex
+    except DroneMobileException as ex:
+        _LOGGER.error("Connection failed: %s", ex)
+        raise CannotConnect from ex
+    finally:
+        await hass.async_add_executor_job(client.close)
 
-    if not result:
-        _LOGGER.error("Failed to authenticate with DroneMobile")
-        raise CannotConnect
     return True
 
 
-async def get_vehicles(hass: core.HomeAssistant, data):
-    vehicleObject = Vehicle(data[CONF_USERNAME], data[CONF_PASSWORD])
+async def get_vehicles(hass: core.HomeAssistant, username: str, password: str):
+    """Get list of vehicles from DroneMobile."""
+    client = DroneMobileClient(username, password)
     try:
-        vehicles = await hass.async_add_executor_job(vehicleObject.getAllVehicles)
+        vehicles = await hass.async_add_executor_job(client.get_vehicles)
         if not vehicles:
-            _LOGGER.error(
-                "Error communicating with DroneMobile"
-            )
+            _LOGGER.error("No vehicles found in DroneMobile account")
             raise CannotConnect
         return vehicles
-    except Exception as ex:
-        _LOGGER.error(ex)
+    except AuthenticationError as ex:
+        _LOGGER.error("Authentication failed: %s", ex)
         raise InvalidAuth from ex
+    except DroneMobileException as ex:
+        _LOGGER.error("Failed to get vehicles: %s", ex)
+        raise CannotConnect from ex
+    finally:
+        await hass.async_add_executor_job(client.close)

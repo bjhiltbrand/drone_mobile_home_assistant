@@ -1,12 +1,8 @@
 refresh_device_status:
-    name: refresh_device_status_VEHICLE_NAME_WITH_SPACES_REPLACED_BY_UNDERSCORES
-    description: Poll vehicle for latest status. Use this sparingly, as it will consume data and vehicle battery.
-dump_device_data:
-    name: dump_device_data_VEHICLE_NAME_WITH_SPACES_REPLACED_BY_UNDERSCORES
-    description: Dump cached json payload containing all vehicle data.
-clear_temp_token:
-    name: clear_temp_token
-    description: Clear the cached tokens.
-replace_token:
-    name: replace_token
-    description: Replace the cached tokens.
+  name: Refresh Device Status
+  description: >
+    Poll the vehicle's DroneMobile device for the latest status information.
+    Use sparingly as this consumes vehicle battery and cellular data.
+    The service name includes your vehicle name with spaces replaced by underscores:
+    drone_mobile.refresh_device_status_VEHICLE_NAME
+  fields: {}

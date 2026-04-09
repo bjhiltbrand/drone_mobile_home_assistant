@@ -1,162 +1,218 @@
+"""Switch platform for DroneMobile integration."""
 import logging
 
+from drone_mobile.exceptions import CommandFailedError, DroneMobileException
+
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DroneMobileEntity
-from .const import DOMAIN, SWITCHES
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Switch Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
-    for key, value in SWITCHES.items():
-        async_add_entities([Switch(entry, key, config_entry.options)], True)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up DroneMobile switch entities."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    entities = [
+        DroneMobileRemoteStart(coordinator),
+        DroneMobilePanic(coordinator),
+    ]
+
+    async_add_entities(entities, True)
 
 
-class Switch(DroneMobileEntity, SwitchEntity):
-    def __init__(self, coordinator, switch, options):
-        """Initialize."""
-        self._device_id="dronemobile_" + switch
-        self.coordinator=coordinator
-        self.switch = switch
-        self._state = self.is_on
-        # Required for HA 2022.7
-        self.coordinator_context = object()
+class DroneMobileRemoteStart(DroneMobileEntity, SwitchEntity):
+    """Remote start switch."""
 
-    async def async_turn_on(self, **kwargs):
-        """switches on the vehicle device."""
-        if self.is_on:
-            return
-        _LOGGER.debug(
-            "switching on %s " + self.switch, self.coordinator.data["vehicle_name"]
+    def __init__(self, coordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="remote_start",
+            name=f"{coordinator.vehicle.name} Remote Start",
         )
-        command_call = None
-        if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.start
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic_on
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.aux2
-        else:
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, True)
-        self.async_write_ha_state()
-
-    async def async_turn_off(self, **kwargs):
-        """switches off the vehicle device."""
-        if not self.is_on:
-            return
-        _LOGGER.debug(
-            "Switching off %s " + self.switch, self.coordinator.data["vehicle_name"]
-        )
-        command_call = None
-        if self.switch == "remoteStart":
-            command_call = self.coordinator.vehicle.stop
-        elif self.switch == "panic":
-            command_call = self.coordinator.vehicle.panic_off
-        else:
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, False)
-        self.async_write_ha_state()
-
-    async def async_toggle(self, **kwargs):
-        """Toggles the vehicle switch."""
-        _LOGGER.debug(
-            "Toggling %s " + self.switch, self.coordinator.data["vehicle_name"]
-        )
-        command_call = None
-        manualValue = False
-        if self.switch == "remoteStart":
-            if self.is_on:
-                command_call = self.coordinator.vehicle.stop
-            else:
-                command_call = self.coordinator.vehicle.start
-                manualValue = True
-        elif self.switch == "panic":
-            if self.is_on:
-                command_call = self.coordinator.vehicle.panic_off
-            else:
-                command_call = self.coordinator.vehicle.panic_on
-                manualValue = True
-        elif self.switch == "aux1":
-            command_call = self.coordinator.vehicle.aux1
-        elif self.switch == "aux2":
-            command_call = self.coordinator.vehicle.aux2
-            return
-        response = await self.coordinator.hass.async_add_executor_job(
-            command_call, self.coordinator.data["device_key"]
-        )
-        await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.update_data_from_response, self.coordinator, response
-        )
-        self._state = self.get_is_on_value(True, manualValue)
-        self.async_write_ha_state()
-    
-    @property
-    def name(self):
-        return self.coordinator.data["vehicle_name"] + "_" + self.switch + "_Switch"
+        self._attr_icon = "mdi:car-key"
+        self._manual_state = None  # Track manual state changes
+        self._manual_state_expiry = None  # When to expire manual state
+        self._attr_should_poll = False  # We'll handle updates via coordinator
 
     @property
-    def device_id(self):
-        return self.device_id
+    def is_on(self) -> bool:
+        """Return true if vehicle is running."""
+        # Check if manual state has expired
+        if self._manual_state is not None and self._manual_state_expiry is not None:
+            from datetime import datetime
+            if datetime.now() > self._manual_state_expiry:
+                self._manual_state = None
+                self._manual_state_expiry = None
         
-    # Need to remove @property decorator in order to be able to change logic based on where the call to is_on is made from.
-    def get_is_on_value(self, calledFromAction=False, manualValue=False):
-        """Determine if the switch is switched."""
-        if self.switch == "remoteStart":
-            if (
-                self.coordinator.data is None
-                or self.coordinator.data["last_known_state"]["controller"]["engine_on"]
-                is None
-            ):
-                return None
-            if calledFromAction:
-                return self.coordinator.data["remote_start_status"] == manualValue
-            else:
-                return (
-                    self.coordinator.data["last_known_state"]["controller"]["engine_on"]
-                    == True
-                    or self.coordinator.data["last_known_state"]["controller"][
-                        "ignition_on"
-                    ]
-                    == True
-                )
-        elif self.switch == "panic":
-            if (
-                self.coordinator.data is None
-                or self.coordinator.data["panic_status"] is None
-            ):
-                return None
-            if calledFromAction:
-                return self.coordinator.data["panic_status"] == manualValue
-            else:
-                return self.coordinator.data["panic_status"] == True
-        # Aux1 and Aux2 are momentary switches that can only be turned on. So, we will set their value to off.
-        elif self.switch == "aux1":
-            return manualValue
-        elif self.switch == "aux2":
-            return manualValue
-        else:
-            _LOGGER.error("Entry not found in SWITCHES: " + self.switch)
+        # If we have a manual state override, use it for immediate feedback
+        if self._manual_state is not None:
+            return self._manual_state
+        
+        status = self.coordinator.data["status"]
+        return status.is_running
 
-    is_on = property(get_is_on_value)
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        # Only clear manual state if it matches the real state now
+        # or if manual state has expired
+        if self._manual_state is not None:
+            status = self.coordinator.data["status"]
+            if self._manual_state == status.is_running:
+                # State matches, clear manual override
+                self._manual_state = None
+                self._manual_state_expiry = None
+        
+        super()._handle_coordinator_update()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Start the vehicle."""
+        from datetime import datetime, timedelta
+        
+        status = self.coordinator.data["status"]
+        if status.is_running and self._manual_state is None:
+            _LOGGER.debug("Vehicle already running, skipping command")
+            return
+
+        _LOGGER.debug("Starting vehicle %s", self.coordinator.vehicle.name)
+        
+        # Set manual state for immediate UI feedback
+        # Keep it for 15 seconds to allow car to start
+        self._manual_state = True
+        self._manual_state_expiry = datetime.now() + timedelta(seconds=15)
+        self.async_write_ha_state()
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.start)
+            # Request a refresh to get the actual state
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to start vehicle: %s", err)
+            # Clear manual state immediately on failure
+            self._manual_state = None
+            self._manual_state_expiry = None
+            self.async_write_ha_state()
+        except DroneMobileException as err:
+            _LOGGER.error("Error starting vehicle: %s", err)
+            self._manual_state = None
+            self._manual_state_expiry = None
+            self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Stop the vehicle."""
+        from datetime import datetime, timedelta
+        
+        status = self.coordinator.data["status"]
+        if not status.is_running and self._manual_state is None:
+            _LOGGER.debug("Vehicle already stopped, skipping command")
+            return
+
+        _LOGGER.debug("Stopping vehicle %s", self.coordinator.vehicle.name)
+        
+        # Set manual state for immediate UI feedback
+        # Keep it for 15 seconds to allow car to stop
+        self._manual_state = False
+        self._manual_state_expiry = datetime.now() + timedelta(seconds=15)
+        self.async_write_ha_state()
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.stop)
+            # Request a refresh to get the actual state
+            await self.coordinator.async_request_refresh()
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to stop vehicle: %s", err)
+            # Clear manual state immediately on failure
+            self._manual_state = None
+            self._manual_state_expiry = None
+            self.async_write_ha_state()
+        except DroneMobileException as err:
+            _LOGGER.error("Error stopping vehicle: %s", err)
+            self._manual_state = None
+            self._manual_state_expiry = None
+            self.async_write_ha_state()
+
+
+class DroneMobilePanic(DroneMobileEntity, SwitchEntity):
+    """Panic alarm switch."""
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="panic",
+            name=f"{coordinator.vehicle.name} Panic",
+        )
+        self._attr_icon = "mdi:alarm-light"
+        self._manual_state = None  # Track manual state changes
+        self._attr_should_poll = False  # We'll handle updates via coordinator
 
     @property
-    def icon(self):
-        return SWITCHES[self.switch]["icon"]
+    def is_on(self) -> bool:
+        """Return true if panic is active."""
+        # If we have a manual state override, use it for immediate feedback
+        if self._manual_state is not None:
+            return self._manual_state
+        
+        # Panic state is tracked manually since API doesn't report it
+        # Default to False (off)
+        return False
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        # Clear manual state when we get real data from coordinator
+        self._manual_state = None
+        super()._handle_coordinator_update()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Activate panic alarm."""
+        _LOGGER.debug("Activating panic for %s", self.coordinator.vehicle.name)
+        
+        # Set manual state for immediate UI feedback
+        # Keep it for 15 seconds to allow car to stop
+        self._manual_state = True
+        self._manual_state_expiry = datetime.now() + timedelta(seconds=15)
+        self.async_write_ha_state()
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.panic_on)
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to activate panic: %s", err)
+            # Clear manual state on failure
+            self._manual_state = None
+            self.async_write_ha_state()
+        except DroneMobileException as err:
+            _LOGGER.error("Error activating panic: %s", err)
+            self._manual_state = None
+            self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Deactivate panic alarm."""
+        _LOGGER.debug("Deactivating panic for %s", self.coordinator.vehicle.name)
+        
+        # Set manual state for immediate UI feedback
+        # Keep it for 15 seconds to allow car to stop
+        self._manual_state = False
+        self._manual_state_expiry = datetime.now() + timedelta(seconds=15)
+        self.async_write_ha_state()
+        
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.panic_off)
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to deactivate panic: %s", err)
+            # Clear manual state on failure
+            self._manual_state = None
+            self.async_write_ha_state()
+        except DroneMobileException as err:
+            _LOGGER.error("Error deactivating panic: %s", err)
+            self._manual_state = None
+            self.async_write_ha_state()
