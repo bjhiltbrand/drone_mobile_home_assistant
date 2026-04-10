@@ -19,6 +19,16 @@
           "override_lock_state_check": "Send lock/unlock commands even if already in that state"
         }
       },
+      "mfa": {
+        "title": "Two-Factor Authentication",
+        "description": "Enter the verification code from your {challenge_description} to complete sign-in.",
+        "data": {
+          "mfa_code": "Verification code"
+        },
+        "data_description": {
+          "mfa_code": "The one-time code sent to your device. Do not include spaces."
+        }
+      },
       "select_vehicle": {
         "title": "Select Vehicle",
         "description": "Select the vehicle you want to add to Home Assistant",
@@ -30,11 +40,14 @@
     "error": {
       "cannot_connect": "Unable to connect to DroneMobile. Please check your internet connection.",
       "invalid_auth": "Invalid email or password. Please try again.",
+      "invalid_mfa_code": "Invalid or expired verification code. Please try again.",
+      "mfa_code_required": "Please enter your verification code.",
+      "mfa_failed": "Two-factor authentication failed. Please restart the setup and try again.",
       "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {
       "already_configured": "This vehicle is already configured in Home Assistant.",
-      "no_vehicles_available": "No vehicles available. All vehicles are already configured."
+      "no_available_vehicles": "No vehicles available. All vehicles are already configured."
     }
   },
   "options": {
