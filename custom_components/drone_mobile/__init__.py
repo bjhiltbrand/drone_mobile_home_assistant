@@ -8,6 +8,7 @@ from drone_mobile import DroneMobileClient
 from drone_mobile.exceptions import (
     AuthenticationError,
     DroneMobileException,
+    MFARequiredError,
 )
 from drone_mobile.models import VehicleInfo
 
@@ -22,10 +23,10 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    CONF_OVERRIDE_LOCK_STATE_CHECK,
     CONF_UNIT,
     CONF_UPDATE_INTERVAL,
     CONF_VEHICLE_ID,
-    CONF_OVERRIDE_LOCK_STATE_CHECK,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     MANUFACTURER,
@@ -65,6 +66,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryAuthFailed:
+        # Re-raise so HA can start the re-auth flow.
+        raise
     except AuthenticationError as err:
         raise ConfigEntryAuthFailed from err
     except DroneMobileException as err:
@@ -97,7 +101,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        # Close the client session
         await hass.async_add_executor_job(coordinator.client.close)
 
     return unload_ok
@@ -114,7 +117,16 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
         vehicle_id: str,
         update_interval: timedelta,
     ) -> None:
-        """Initialize the coordinator."""
+        """Initialize the coordinator.
+
+        Note: No mfa_callback is passed to DroneMobileClient here.  After a
+        successful initial config flow the library caches a token on disk, so
+        subsequent refreshes use REFRESH_TOKEN_AUTH which bypasses MFA.  If
+        the refresh token itself ever expires, Cognito would require MFA again;
+        in that case MFARequiredError is treated as an authentication failure
+        and HA will start its standard re-auth flow (which does include the MFA
+        step via config_flow.async_step_mfa).
+        """
         super().__init__(
             hass,
             _LOGGER,
@@ -150,8 +162,24 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
                 "info": self.vehicle.info,
             }
 
+        except MFARequiredError as err:
+            # The cached refresh token has expired and Cognito is asking for a
+            # second factor again.  We cannot complete MFA headlessly here, so
+            # treat this as an authentication failure and let HA's re-auth flow
+            # handle it (which will route through config_flow.async_step_mfa).
+            _LOGGER.warning(
+                "MFA challenge '%s' required during token refresh for vehicle %s. "
+                "Re-authentication is needed.",
+                err.challenge_name,
+                self.vehicle_id,
+            )
+            raise ConfigEntryAuthFailed(
+                "MFA re-authentication required. Please re-authenticate the integration."
+            ) from err
+
         except AuthenticationError as err:
             raise ConfigEntryAuthFailed("Authentication failed") from err
+
         except DroneMobileException as err:
             self._available = False
             _LOGGER.warning(
@@ -187,8 +215,12 @@ class DroneMobileEntity(CoordinatorEntity):
     def device_info(self):
         """Return device information about this entity."""
         info = self.coordinator.data["info"]
-        model = f"{info.year} {info.make} {info.model}" if info.year and info.make and info.model else "Unknown Model"
-        
+        model = (
+            f"{info.year} {info.make} {info.model}"
+            if info.year and info.make and info.model
+            else "Unknown Model"
+        )
+
         return {
             "identifiers": {(DOMAIN, self.coordinator.vehicle_id)},
             "name": info.name,
