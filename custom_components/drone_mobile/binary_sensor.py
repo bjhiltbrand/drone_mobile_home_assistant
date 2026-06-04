@@ -163,6 +163,15 @@ BINARY_SENSORS: tuple[DroneMobileBinarySensorDescription, ...] = (
         icon="mdi:shield-car",
         value_fn=lambda s: _controller(s).get("passive_arming_enabled"),
     ),
+    # Auto Lock/Arm is a separate, installer-configured field (not part of the
+    # /features write set), so it is read-only.
+    DroneMobileBinarySensorDescription(
+        key="auto_lock_arm",
+        name="Auto Lock/Arm",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:lock-check",
+        value_fn=lambda s: _controller(s).get("auto_door_lock_enabled"),
+    ),
 )
 
 
