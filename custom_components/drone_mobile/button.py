@@ -25,6 +25,8 @@ async def async_setup_entry(
     entities = [
         DroneMobileAux1Button(coordinator),
         DroneMobileAux2Button(coordinator),
+        DroneMobileTrunkButton(coordinator),
+        DroneMobileLocateButton(coordinator),
     ]
 
     async_add_entities(entities, True)
@@ -74,3 +76,51 @@ class DroneMobileAux2Button(DroneMobileEntity, ButtonEntity):
             _LOGGER.error("Failed to trigger Aux2: %s", err)
         except DroneMobileException as err:
             _LOGGER.error("Error triggering Aux2: %s", err)
+
+
+class DroneMobileTrunkButton(DroneMobileEntity, ButtonEntity):
+    """Trunk release button."""
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the button."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="trunk_release",
+            name=f"{coordinator.vehicle.name} Trunk",
+        )
+        self._attr_icon = "mdi:car-back"
+
+    async def async_press(self) -> None:
+        """Handle the button press."""
+        _LOGGER.debug("Opening trunk for %s", self.coordinator.vehicle.name)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.vehicle.trunk)
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to open trunk: %s", err)
+        except DroneMobileException as err:
+            _LOGGER.error("Error opening trunk: %s", err)
+
+
+class DroneMobileLocateButton(DroneMobileEntity, ButtonEntity):
+    """Request a fresh GPS location from the vehicle."""
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the button."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="locate",
+            name=f"{coordinator.vehicle.name} Locate",
+        )
+        self._attr_icon = "mdi:crosshairs-gps"
+
+    async def async_press(self) -> None:
+        """Handle the button press."""
+        _LOGGER.debug("Requesting location for %s", self.coordinator.vehicle.name)
+        try:
+            await self.hass.async_add_executor_job(
+                self.coordinator.vehicle.get_location
+            )
+        except CommandFailedError as err:
+            _LOGGER.error("Failed to request location: %s", err)
+        except DroneMobileException as err:
+            _LOGGER.error("Error requesting location: %s", err)
