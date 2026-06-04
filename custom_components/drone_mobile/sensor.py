@@ -54,6 +54,14 @@ async def async_setup_entry(
 
     async_add_entities(entities, True)
 
+    _LOGGER.warning(
+        "The string status sensors (Alarm, Ignition, Engine, Doors, Trunk, "
+        "Hood) are deprecated in favor of the new binary_sensor entities and "
+        "are disabled by default for new installs. They will be removed in a "
+        "future release; please migrate dashboards and automations to the "
+        "binary_sensor equivalents."
+    )
+
 
 class DroneMobileOdometer(DroneMobileEntity, SensorEntity):
     """Odometer sensor."""
@@ -198,7 +206,13 @@ class DroneMobileGPS(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileAlarm(DroneMobileEntity, SensorEntity):
-    """Alarm status sensor."""
+    """Alarm status sensor.
+
+    Deprecated: superseded by the Lock binary sensor. Disabled by default for
+    new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
@@ -217,7 +231,13 @@ class DroneMobileAlarm(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileIgnition(DroneMobileEntity, SensorEntity):
-    """Ignition status sensor."""
+    """Ignition status sensor.
+
+    Deprecated: superseded by the Ignition binary sensor. Disabled by default
+    for new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
@@ -241,7 +261,13 @@ class DroneMobileIgnition(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileEngine(DroneMobileEntity, SensorEntity):
-    """Engine status sensor."""
+    """Engine status sensor.
+
+    Deprecated: superseded by the Engine binary sensor. Disabled by default
+    for new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
@@ -260,7 +286,13 @@ class DroneMobileEngine(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileDoor(DroneMobileEntity, SensorEntity):
-    """Door status sensor."""
+    """Door status sensor.
+
+    Deprecated: superseded by the Doors binary sensor. Disabled by default for
+    new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
@@ -283,7 +315,13 @@ class DroneMobileDoor(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileTrunkSensor(DroneMobileEntity, SensorEntity):
-    """Trunk status sensor."""
+    """Trunk status sensor.
+
+    Deprecated: superseded by the Trunk binary sensor. Disabled by default for
+    new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
@@ -306,7 +344,13 @@ class DroneMobileTrunkSensor(DroneMobileEntity, SensorEntity):
 
 
 class DroneMobileHood(DroneMobileEntity, SensorEntity):
-    """Hood status sensor."""
+    """Hood status sensor.
+
+    Deprecated: superseded by the Hood binary sensor. Disabled by default for
+    new installs; will be removed in a future release.
+    """
+
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
