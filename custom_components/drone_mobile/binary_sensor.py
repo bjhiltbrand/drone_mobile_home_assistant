@@ -28,18 +28,26 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 # A 12V vehicle battery at or below this resting voltage is considered low.
+# Used only as a fallback when the API does not report a low_battery flag.
 LOW_BATTERY_VOLTAGE = 11.8
+
+
+def _raw(status: Any) -> dict:
+    """Return the raw status payload dict, or {}."""
+    return getattr(status, "raw_data", None) or {}
 
 
 def _controller(status: Any) -> dict:
     """Return the controller block from the raw status payload, or {}."""
-    raw = getattr(status, "raw_data", None) or {}
-    last_known = raw.get("last_known_state") or {}
+    last_known = _raw(status).get("last_known_state") or {}
     return last_known.get("controller") or {}
 
 
 def _low_battery(status: Any) -> bool | None:
-    """True when the battery voltage is at or below the low threshold."""
+    """Prefer the API low_battery flag; fall back to a voltage threshold."""
+    flag = _raw(status).get("low_battery")
+    if flag is not None:
+        return bool(flag)
     voltage = getattr(status, "battery_voltage", None)
     if voltage is None:
         return None
@@ -106,9 +114,22 @@ BINARY_SENSORS: tuple[DroneMobileBinarySensorDescription, ...] = (
         key="low_battery",
         name="Low Battery",
         device_class=BinarySensorDeviceClass.BATTERY,
-        entity_category=None,
         icon="mdi:car-battery",
         value_fn=_low_battery,
+    ),
+    DroneMobileBinarySensorDescription(
+        key="panic",
+        name="Panic",
+        device_class=BinarySensorDeviceClass.SAFETY,
+        icon="mdi:alarm-light",
+        value_fn=lambda s: _raw(s).get("panic_status"),
+    ),
+    DroneMobileBinarySensorDescription(
+        key="towing",
+        name="Towing",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:tow-truck",
+        value_fn=lambda s: _raw(s).get("towing_detected"),
     ),
 )
 

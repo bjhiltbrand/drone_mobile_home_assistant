@@ -41,6 +41,11 @@ TO_REDACT = {
     "token",
     "vehicle_id",
     "device_id",
+    "subscriber_id",
+    "ble_mac_address",
+    # The vehicle/plan image fields are AWS presigned URLs that embed a
+    # temporary X-Amz-Security-Token, so redact the whole value.
+    "image",
 }
 
 
