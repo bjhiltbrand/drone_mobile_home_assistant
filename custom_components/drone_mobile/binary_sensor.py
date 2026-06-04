@@ -19,6 +19,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -130,6 +131,37 @@ BINARY_SENSORS: tuple[DroneMobileBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.PROBLEM,
         icon="mdi:tow-truck",
         value_fn=lambda s: _raw(s).get("towing_detected"),
+    ),
+    # Controller settings (read-only state). The user-settable ones (siren,
+    # shock sensor) are exposed as switches; these are dealer-gated or not
+    # web-settable, so they appear here as diagnostic state only.
+    DroneMobileBinarySensorDescription(
+        key="valet_mode",
+        name="Valet Mode",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:account-tie",
+        value_fn=lambda s: _controller(s).get("valet_mode_enabled"),
+    ),
+    DroneMobileBinarySensorDescription(
+        key="turbo_timer",
+        name="Turbo Timer",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:timer-cog-outline",
+        value_fn=lambda s: _controller(s).get("turbo_timer_start_enabled"),
+    ),
+    DroneMobileBinarySensorDescription(
+        key="drive_lock",
+        name="Drive Lock",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:car-door-lock",
+        value_fn=lambda s: _controller(s).get("drive_lock_enabled"),
+    ),
+    DroneMobileBinarySensorDescription(
+        key="passive_arming",
+        name="Passive Arming",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:shield-car",
+        value_fn=lambda s: _controller(s).get("passive_arming_enabled"),
     ),
 )
 
