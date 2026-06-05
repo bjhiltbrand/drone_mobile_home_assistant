@@ -14,6 +14,31 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Controller feature flags managed together by the /features endpoint.
+# The API expects the full object, so a toggle sends all of them with the
+# target flag changed. Only the user-settable ones are exposed as switches;
+# the dealer-gated ones (e.g. valet mode) are read-only elsewhere.
+FEATURE_FLAGS = (
+    "siren_enabled",
+    "valet_mode_enabled",
+    "shock_sensor_enabled",
+    "drive_lock_enabled",
+    "turbo_timer_start_enabled",
+    "passive_arming_enabled",
+)
+
+
+def _controller(status) -> dict:
+    """Return the controller block from the raw status payload, or {}."""
+    raw = getattr(status, "raw_data", None) or {}
+    return (raw.get("last_known_state") or {}).get("controller") or {}
+
+
+def _current_features(status) -> dict:
+    """Current values of all feature flags, for a full-object PATCH."""
+    controller = _controller(status)
+    return {flag: bool(controller.get(flag, False)) for flag in FEATURE_FLAGS}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -26,6 +51,12 @@ async def async_setup_entry(
     entities = [
         DroneMobileRemoteStart(coordinator),
         DroneMobilePanic(coordinator),
+        DroneMobileFeatureSwitch(
+            coordinator, "siren_enabled", "Siren", "mdi:bullhorn"
+        ),
+        DroneMobileFeatureSwitch(
+            coordinator, "shock_sensor_enabled", "Shock Sensor", "mdi:vibrate"
+        ),
     ]
 
     async_add_entities(entities, True)
@@ -211,3 +242,83 @@ class DroneMobilePanic(DroneMobileEntity, SwitchEntity):
             self._manual_state = None
             self._manual_state_expiry = None
             self.async_write_ha_state()
+
+
+class DroneMobileFeatureSwitch(DroneMobileEntity, SwitchEntity):
+    """A user-settable controller feature (e.g. siren, shock sensor).
+
+    State is read from the controller block in the status payload. Toggling
+    sends the full feature object via set_features with the one flag changed,
+    so dealer-gated flags ride along at their current value and do not trip
+    the installer error.
+    """
+
+    _attr_should_poll = False
+
+    def __init__(self, coordinator, feature_key: str, label: str, icon: str) -> None:
+        """Initialize the switch."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id=feature_key,
+            name=f"{coordinator.vehicle.name} {label}",
+        )
+        self._feature_key = feature_key
+        self._attr_icon = icon
+        self._manual_state = None
+        self._manual_state_expiry = None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the feature is enabled."""
+        if self._manual_state is not None and self._manual_state_expiry is not None:
+            if datetime.now() > self._manual_state_expiry:
+                self._manual_state = None
+                self._manual_state_expiry = None
+        if self._manual_state is not None:
+            return self._manual_state
+
+        value = _controller(self.coordinator.data["status"]).get(self._feature_key)
+        return bool(value) if value is not None else None
+
+    def _handle_coordinator_update(self) -> None:
+        """Clear the manual override once the real state catches up."""
+        if self._manual_state is not None:
+            controller = _controller(self.coordinator.data["status"])
+            if self._manual_state == bool(controller.get(self._feature_key, False)):
+                self._manual_state = None
+                self._manual_state_expiry = None
+        super()._handle_coordinator_update()
+
+    async def _apply(self, target: bool) -> None:
+        """Send the full feature object with this flag set to target."""
+        features = _current_features(self.coordinator.data["status"])
+        features[self._feature_key] = target
+
+        # Optimistic UI; reverts on error or once the coordinator catches up.
+        self._manual_state = target
+        self._manual_state_expiry = datetime.now() + timedelta(seconds=15)
+        self.async_write_ha_state()
+
+        try:
+            await self.hass.async_add_executor_job(
+                lambda: self.coordinator.vehicle.set_features(**features)
+            )
+            await self.coordinator.async_request_refresh()
+        except (CommandFailedError, DroneMobileException) as err:
+            _LOGGER.error(
+                "Failed to set %s for %s: %s",
+                self._feature_key,
+                self.coordinator.vehicle.name,
+                err,
+            )
+            self._manual_state = None
+            self._manual_state_expiry = None
+            self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Enable the feature."""
+        await self._apply(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Disable the feature."""
+        await self._apply(False)
