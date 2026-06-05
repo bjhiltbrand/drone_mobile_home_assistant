@@ -9,6 +9,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    EntityCategory,
     PERCENTAGE,
     UnitOfElectricPotential,
     UnitOfLength,
@@ -22,6 +23,12 @@ from . import DroneMobileEntity
 from .const import CONF_UNIT, DEFAULT_UNIT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _last_known_state(status) -> dict:
+    """Return the last_known_state block from the raw status payload, or {}."""
+    raw = getattr(status, "raw_data", None) or {}
+    return raw.get("last_known_state") or {}
 
 
 async def async_setup_entry(
@@ -45,6 +52,11 @@ async def async_setup_entry(
         DroneMobileTrunkSensor(coordinator),
         DroneMobileHood(coordinator),
         DroneMobileLastRefresh(coordinator),
+        DroneMobileCellularSignal(coordinator),
+        DroneMobileBackupBattery(coordinator),
+        DroneMobileCarrier(coordinator),
+        DroneMobileFirmware(coordinator),
+        DroneMobileControllerModel(coordinator),
     ]
 
     # Only add GPS sensor if location is available
@@ -393,3 +405,115 @@ class DroneMobileLastRefresh(DroneMobileEntity, SensorEntity):
         if status.last_updated:
             return dt_util.as_local(status.last_updated)
         return None
+
+
+class DroneMobileCellularSignal(DroneMobileEntity, SensorEntity):
+    """Cellular signal strength reported by the device."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="cellular_signal",
+            name=f"{coordinator.vehicle.name} Cellular Signal",
+        )
+        self._attr_icon = "mdi:signal"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state of the sensor."""
+        return _last_known_state(self.coordinator.data["status"]).get(
+            "cellular_signal_strength"
+        )
+
+
+class DroneMobileBackupBattery(DroneMobileEntity, SensorEntity):
+    """Backup battery voltage sensor."""
+
+    _attr_device_class = SensorDeviceClass.VOLTAGE
+    _attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="backup_battery",
+            name=f"{coordinator.vehicle.name} Backup Battery",
+        )
+        self._attr_icon = "mdi:battery-charging"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        return _last_known_state(self.coordinator.data["status"]).get(
+            "backup_battery_voltage"
+        )
+
+
+class DroneMobileCarrier(DroneMobileEntity, SensorEntity):
+    """Cellular carrier sensor."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="carrier",
+            name=f"{coordinator.vehicle.name} Carrier",
+        )
+        self._attr_icon = "mdi:radio-tower"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return _last_known_state(self.coordinator.data["status"]).get("carrier")
+
+
+class DroneMobileFirmware(DroneMobileEntity, SensorEntity):
+    """Device firmware version sensor."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="firmware_version",
+            name=f"{coordinator.vehicle.name} Firmware",
+        )
+        self._attr_icon = "mdi:chip"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return _last_known_state(self.coordinator.data["status"]).get(
+            "firmware_version"
+        )
+
+
+class DroneMobileControllerModel(DroneMobileEntity, SensorEntity):
+    """Vehicle controller model sensor."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator=coordinator,
+            device_id="controller_model",
+            name=f"{coordinator.vehicle.name} Controller Model",
+        )
+        self._attr_icon = "mdi:car-cog"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return _last_known_state(self.coordinator.data["status"]).get(
+            "controller_model"
+        )
