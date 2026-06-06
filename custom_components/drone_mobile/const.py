@@ -1,8 +1,20 @@
 """Constants for the DroneMobile integration."""
+from pathlib import Path
 from typing import Final
 
 DOMAIN: Final = "drone_mobile"
 MANUFACTURER: Final = "DroneMobile"
+
+
+def token_storage_dir(hass) -> Path:
+    """Persistent token and device-remembering storage under ``/config``.
+
+    The library defaults to ``~/.config/drone_mobile`` which, on Home Assistant
+    OS, lives inside the Core container and is wiped on every Core update.
+    Storing under ``/config`` keeps the cached token and the remembered device
+    across updates, so MFA is not re-triggered after each upgrade.
+    """
+    return Path(hass.config.path(DOMAIN))
 
 # Configuration
 CONF_VEHICLE_ID: Final = "vehicle_id"

@@ -30,6 +30,7 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     MANUFACTURER,
+    token_storage_dir,
 )
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
@@ -134,7 +135,9 @@ class DroneMobileDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=update_interval,
         )
         self.vehicle_id = vehicle_id
-        self.client = DroneMobileClient(username, password)
+        self.client = DroneMobileClient(
+            username, password, token_dir=token_storage_dir(hass)
+        )
         self.vehicle = None
         self._available = True
 
