@@ -19,6 +19,7 @@ from .const import (
     DEFAULT_UNIT,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    token_storage_dir,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -330,6 +331,7 @@ async def validate_input(
     client = DroneMobileClient(
         data[CONF_USERNAME],
         data[CONF_PASSWORD],
+        token_dir=token_storage_dir(hass),
         mfa_callback=mfa_callback,
     )
 
@@ -358,7 +360,7 @@ async def get_vehicles(hass: core.HomeAssistant, username: str, password: str):
     Token is already valid at this point (validate_input succeeded), so no
     MFA callback is needed here.
     """
-    client = DroneMobileClient(username, password)
+    client = DroneMobileClient(username, password, token_dir=token_storage_dir(hass))
     try:
         vehicles = await hass.async_add_executor_job(client.get_vehicles)
         if not vehicles:
