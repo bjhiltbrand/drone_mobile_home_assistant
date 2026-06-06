@@ -7,6 +7,13 @@ and this project uses [CalVer](https://calver.org/) versioning (`YYYY.M.D`).
 
 ---
 
+## [2026.6.6] - 2026-06-06
+
+### Changed
+- Bumped `drone_mobile` dependency to `0.4.1`
+
+---
+
 ## [2026.6.5] - 2026-06-05
 
 ### Fixed
