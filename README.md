@@ -31,13 +31,24 @@ This integration uses an **unofficial API** from [DroneMobile](https://www.drone
 - 🔋 **Battery** - Voltage and percentage
 - 🌡️ **Temperature** - Interior and exterior temperatures
 - 📍 **GPS** - Current location coordinates
-- 🚨 **Alarm Status** - Armed/Disarmed
-- 🔑 **Ignition Status** - On/Off
-- 🏃 **Engine Status** - Running/Off
-- 🚪 **Door Status** - Open/Closed
-- 🎒 **Trunk Status** - Open/Closed
-- 🚗 **Hood Status** - Open/Closed
+- 📶 **Cellular Signal** - Device signal strength (diagnostic)
+- 🔋 **Backup Battery** - Backup battery voltage (diagnostic)
+- 📡 **Carrier** - Cellular carrier name (diagnostic)
+- 🔧 **Firmware Version** - Device firmware version (diagnostic)
+- 🖥️ **Controller Model** - Vehicle controller model (diagnostic)
 - 🕐 **Last Refresh** - Timestamp of last update
+
+### Binary Sensors
+- 🚗 **Engine** - Running/Off
+- 🔑 **Ignition** - On/Off
+- 🔒 **Lock** - Locked/Unlocked
+- 🚪 **Doors** - Open/Closed
+- 🎒 **Trunk** - Open/Closed
+- 🚗 **Hood** - Open/Closed
+- 🔋 **Low Battery** - Low battery alert (uses API flag or ≤ 11.8 V threshold)
+- 🚨 **Panic** - Panic alarm active/inactive
+- 🚛 **Towing** - Towing detected
+- Diagnostic read-only flags: Valet Mode, Turbo Timer, Drive Lock, Passive Arming, Auto Lock/Arm
 
 ### Controls
 - 🔒 **Door Lock** - Lock/Unlock doors
@@ -45,6 +56,9 @@ This integration uses an **unofficial API** from [DroneMobile](https://www.drone
 - 🏁 **Remote Start** - Start/Stop engine
 - 🚨 **Panic Alarm** - Activate/Deactivate panic
 - 🔧 **Auxiliary 1 & 2** - Trigger auxiliary functions
+- 📍 **Locate** - Request a fresh GPS fix from the vehicle
+- 🔊 **Siren** - Enable/Disable siren
+- ⚡ **Shock Sensor** - Enable/Disable shock sensor
 
 ### Device Tracker
 - 📍 **GPS Tracker** - Real-time location tracking
@@ -88,8 +102,9 @@ This integration uses an **unofficial API** from [DroneMobile](https://www.drone
    - **Units** - Imperial (miles/°F) or Metric (km/°C)
    - **Update Interval** - How often to poll for updates (2-60 minutes)
    - **Override Lock State Check** - Send lock commands regardless of current state
-5. Select your vehicle from the list
-6. Click **Submit**
+5. If your DroneMobile account has **two-factor authentication (MFA)** enabled, you will be prompted to enter a one-time verification code. Depending on your account settings, this will be delivered via SMS or your authenticator app (TOTP).
+6. Select your vehicle from the list
+7. Click **Submit**
 
 ### Multiple Vehicles
 
@@ -110,6 +125,7 @@ Example for a vehicle named "My Car":
 - `sensor.my_car_odometer`
 - `lock.my_car_door_lock`
 - `switch.my_car_remote_start`
+- `binary_sensor.my_car_engine`
 - `device_tracker.my_car_location`
 
 ### Services
@@ -165,8 +181,8 @@ automation:
         at: "22:00:00"
     condition:
       - condition: state
-        entity_id: lock.my_car_door_lock
-        state: 'unlocked'
+        entity_id: binary_sensor.my_car_lock
+        state: 'on'
     action:
       - service: notify.mobile_app
         data:
@@ -192,9 +208,9 @@ automation:
 automation:
   - alias: "Alert on low car battery"
     trigger:
-      - platform: numeric_state
-        entity_id: sensor.my_car_battery
-        below: 12.0
+      - platform: state
+        entity_id: binary_sensor.my_car_low_battery
+        to: 'on'
     action:
       - service: notify.mobile_app
         data:
@@ -216,7 +232,7 @@ automation:
         entity_id: sensor.my_car_temperature
         below: 50
       - condition: state
-        entity_id: switch.my_car_remote_start
+        entity_id: binary_sensor.my_car_engine
         state: 'off'
     action:
       - service: switch.turn_on
@@ -232,8 +248,10 @@ automation:
 type: entities
 title: My Car
 entities:
-  - entity: sensor.my_car_engine
+  - entity: binary_sensor.my_car_engine
     name: Engine
+  - entity: binary_sensor.my_car_ignition
+    name: Ignition
   - entity: lock.my_car_door_lock
     name: Doors
   - entity: sensor.my_car_battery
@@ -258,6 +276,8 @@ entities:
     name: Trunk
   - entity: switch.my_car_panic
     name: Panic
+  - entity: button.my_car_locate
+    name: Locate
 ```
 
 #### Map Card
@@ -305,6 +325,11 @@ logger:
 - Check that your DroneMobile subscription is active
 - Ensure you can log in to the DroneMobile app
 
+#### MFA code not accepted
+- Codes are time-sensitive; make sure your device clock is accurate
+- Re-enter your credentials to trigger a fresh code to be sent
+- Ensure you are reading from the correct SMS thread or authenticator app entry
+
 #### Entities show "Unavailable"
 - Check Home Assistant logs for errors
 - Try removing and re-adding the integration
@@ -324,7 +349,8 @@ logger:
 1. Check the [GitHub Issues](https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues)
 2. Enable debug logging (see above)
 3. Review Home Assistant logs: Settings → System → Logs
-4. Open a new issue with:
+4. Use **Download diagnostics** (Settings → Devices & Services → DroneMobile → three-dot menu) to capture a redacted snapshot for bug reports
+5. Open a new issue with:
    - Your Home Assistant version
    - Integration version
    - Relevant log entries
@@ -332,10 +358,11 @@ logger:
 
 ## Privacy & Security
 
-- Your DroneMobile credentials are stored securely in Home Assistant's configuration
-- Authentication tokens are cached locally to minimize API calls
+- Your DroneMobile credentials are stored securely in Home Assistant's encrypted configuration
+- Authentication tokens are cached in `/config/drone_mobile/` so they persist across Home Assistant Core updates and are included in HA backups — you will not be asked to re-authenticate after every upgrade
 - No data is sent to third parties
 - All communication is with DroneMobile's official API
+- The **Download diagnostics** feature automatically redacts all sensitive fields (credentials, VIN, location, tokens, IMEI, etc.) before the file is saved
 
 ## Contributing
 
