@@ -7,6 +7,18 @@ and this project uses [CalVer](https://calver.org/) versioning (`YYYY.M.D`).
 
 ---
 
+## [2026.6.5] - 2026-06-05
+
+### Fixed
+- Token cache directory is now stored under `/config/drone_mobile/` (resolved via
+  `hass.config.path(DOMAIN)`) instead of the library default `~/.config/drone_mobile/`
+  inside the Core container. Previously, the cached Cognito token was wiped on every
+  Home Assistant Core update, silently forcing a full re-authentication — and for accounts
+  with MFA enabled, a new one-time code entry — after every upgrade. The token now persists
+  alongside the rest of the HA configuration and is included in HA snapshots and backups.
+
+---
+
 ## [2026.4.10] - 2026-04-10
 
 ### Added
@@ -16,6 +28,29 @@ and this project uses [CalVer](https://calver.org/) versioning (`YYYY.M.D`).
   - Human-readable prompt tells the user whether to check their SMS or authenticator app
   - If a cached refresh token later expires and Cognito re-requires MFA, Home Assistant
     will automatically start the re-auth flow rather than silently failing
+- `binary_sensor` platform with automation-friendly, device-class entities:
+  - Doors, Hood, Trunk (opening/door device classes)
+  - Ignition (power), Engine (running), Lock
+  - Low Battery — prefers the API `low_battery` flag; falls back to a ≤ 11.8 V threshold
+  - Panic (safety) and Towing Detection (problem)
+  - Diagnostic read-only flags: Valet Mode, Turbo Timer, Drive Lock, Passive Arming,
+    Auto Lock/Arm
+- `diagnostics.py` support — enables the "Download diagnostics" button in
+  Settings → Devices & Services; sensitive fields (credentials, VIN, location, tokens,
+  IMEI, etc.) are automatically redacted before download
+- Additional sensors:
+  - Cellular Signal Strength (diagnostic)
+  - Backup Battery Voltage (diagnostic)
+  - Cellular Carrier (diagnostic)
+  - Firmware Version (diagnostic)
+  - Controller Model (diagnostic)
+- Additional button entity: **Locate** — requests a fresh GPS fix from the vehicle
+- Additional switch entities: **Siren** and **Shock Sensor** — toggle the corresponding
+  controller feature flags via the `/features` endpoint; the full feature object is sent
+  on each write so dealer-gated flags are preserved
+- String status sensors (Alarm, Ignition, Engine, Doors, Trunk, Hood) are now disabled
+  by default for new installs in favour of the binary sensor equivalents; they will be
+  removed in a future release
 
 ### Fixed
 - `DroneMobilePanic` switch: missing top-level `datetime`/`timedelta` imports caused
