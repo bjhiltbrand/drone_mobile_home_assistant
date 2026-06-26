@@ -4,7 +4,7 @@
 [![hainstall][hainstallbadge]][hainstall]
 [![PayPal][paypalbadge]][paypal]
 [![github][ghsbadge]][ghs]
-[![Version](https://img.shields.io/badge/version-2026.6.6-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
+[![Version](https://img.shields.io/badge/version-2026.6.26-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
 
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
