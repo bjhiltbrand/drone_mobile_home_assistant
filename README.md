@@ -4,7 +4,7 @@
 [![hainstall][hainstallbadge]][hainstall]
 [![PayPal][paypalbadge]][paypal]
 [![github][ghsbadge]][ghs]
-[![Version](https://img.shields.io/badge/version-2026.6.26-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
+[![Version](https://img.shields.io/badge/version-2026.7.2-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc)](https://github.com/bjhiltbrand/drone_mobile_home_assistant)
 
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
@@ -73,15 +73,16 @@ This integration uses an **unofficial API** from [DroneMobile](https://www.drone
 
 ### HACS (Recommended)
 
+DroneMobile is now part of the **HACS default integrations list**, so there's no need to add a custom repository anymore.
+
 1. Open HACS in Home Assistant
 2. Go to "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/bjhiltbrand/drone_mobile_home_assistant`
-6. Select category: "Integration"
-7. Click "Add"
-8. Find "DroneMobile" in the list and click "Install"
-9. Restart Home Assistant
+3. Click **"Explore & Download Repositories"** (top right)
+4. Search for **"DroneMobile"**
+5. Click **"Download"**
+6. Restart Home Assistant
+
+> **Already had this added as a custom repository?** You can safely remove the old custom repository entry (HACS → Integrations → DroneMobile → three-dot menu → **Remove**), then re-download it — HACS will now serve it from the default list automatically. Your existing configuration and entities are unaffected either way.
 
 ### Manual Installation
 
