@@ -7,6 +7,16 @@ and this project uses [CalVer](https://calver.org/) versioning (`YYYY.M.D`).
 
 ---
 
+## [2026.7.2] - 2026-07-02
+
+### Changed
+- DroneMobile is now listed in the **HACS default integrations list**. A custom
+  repository is no longer required — search for "DroneMobile" directly in HACS.
+- Updated README and info.md installation instructions to reflect default-repo
+  listing.
+
+---
+
 ## [2026.6.6] - 2026-06-06
 
 ### Changed
