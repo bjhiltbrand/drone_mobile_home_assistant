@@ -7,5 +7,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/bjhiltbrand/drone_mobile_home_assistant/issues",
   "requirements": ["drone_mobile==0.4.1"],
-  "version": "2026.6.6"
+  "version": "2026.7.2"
 }
